@@ -1,0 +1,20 @@
+JOURNAL DE BÉBÉ : installation sur Android
+
+Contenu du dossier
+- index.html : l'application
+- manifest.webmanifest, sw.js, icônes : ce qui la rend installable et utilisable hors ligne
+
+Installer
+1. Déposer le dossier tel quel sur un hébergement statique en HTTPS
+   (GitHub Pages, Netlify, Cloudflare Pages...).
+2. Sur le téléphone Android, ouvrir l'adresse obtenue dans Chrome.
+3. Menu ⋮ puis « Installer l'application » (ou « Ajouter à l'écran d'accueil »).
+4. L'icône apparaît sur l'écran d'accueil : l'app s'ouvre en plein écran et fonctionne hors ligne.
+
+Données
+- Tout est enregistré sur le téléphone, rien n'est envoyé sur un serveur.
+- Désinstaller l'app ou effacer les données de Chrome pour ce site efface le journal.
+- Le journal rempli dans la version Claude ne se transfère pas : c'est un nouveau départ.
+
+Mettre à jour
+- Remplacer index.html sur l'hébergement, puis changer « journal-bebe-v1 » en « v2 » dans sw.js.

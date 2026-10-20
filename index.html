@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Journal de bébé</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+(function () {
+  var dark;
+  try {
+    var p = JSON.parse(localStorage.getItem('bb.prefs') || '{}');
+    var t = p.theme || 'auto';
+    var h = new Date().getHours();
+    var sys = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    dark = t === 'dark' || (t === 'auto' && (sys || h >= 20 || h < 7));
+  } catch (e) {
+    var h2 = new Date().getHours();
+    dark = h2 >= 20 || h2 < 7;
+  }
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+})();
+</script>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #E7E0D3;
+  --surface: #F2EDE4;
+  --surface-2: #DAD0BF;
+  --line: #CDC2AF;
+  --text: #2F261D;
+  --muted: #6B5B45;
+  --accent: #86541F;
+  --on-accent: #FBF6EE;
+  --alert: #9A3F22;
+  --alert-bg: #EED8C8;
+  --ok: #55612E;
+  --scrim: rgba(40, 28, 16, .45);
+  --font: "Figtree", ui-rounded, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #000000;
+    --surface: #15100B;
+    --surface-2: #221911;
+    --line: #2C2117;
+    --text: #D8BA90;
+    --muted: #8C7356;
+    --accent: #CC8840;
+    --on-accent: #120A03;
+    --alert: #CF6E43;
+    --alert-bg: #2A1409;
+    --ok: #A6A469;
+    --scrim: rgba(0, 0, 0, .7);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #000000;
+  --surface: #15100B;
+  --surface-2: #221911;
+  --line: #2C2117;
+  --text: #D8BA90;
+  --muted: #8C7356;
+  --accent: #CC8840;
+  --on-accent: #120A03;
+  --alert: #CF6E43;
+  --alert-bg: #2A1409;
+  --ok: #A6A469;
+  --scrim: rgba(0, 0, 0, .7);
+}
+*, *::before, *::after { box-sizing: inherit; }
+[hidden] { display: none !important; }
+html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); background: var(--bg); -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.45;
+  -webkit-tap-highlight-color: transparent;
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto;
+  height: env(safe-area-inset-top, 0px);
+  z-index: 10;
+  background: var(--bg);
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 540px; margin: 0 auto; padding: 0 18px; }
+.emo { font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; line-height: 1; }
+:root[data-theme="dark"] .emo { filter: sepia(.85) saturate(.7) brightness(.8); }
+
+/* En-tête */
+.top { flex: none; position: relative; z-index: 5; background: var(--bg); padding-top: 12px; }
+.toprow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.who h1 { margin: 0; font-size: 23px; font-weight: 800; letter-spacing: -.01em; line-height: 1.15; }
+.who p { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+.icon {
+  appearance: none; border: 1px solid var(--line); background: transparent;
+  border-radius: 999px; width: 44px; height: 44px; font-size: 18px; flex: none;
+}
+.tabs { display: flex; gap: 2px; margin-top: 10px; border-bottom: 1px solid var(--line); }
+.tab {
+  appearance: none; background: none; border: 0; padding: 10px 12px 9px;
+  font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent;
+  margin-bottom: -1px; position: relative;
+}
+.tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+.tab .dot { position: absolute; top: 9px; right: 2px; width: 7px; height: 7px; border-radius: 50%; background: var(--alert); }
+
+main { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 14px 0 28px; }
+
+/* Bandeaux */
+.banner {
+  display: flex; gap: 10px; align-items: flex-start; width: 100%; text-align: left;
+  appearance: none; border: 0; background: var(--alert-bg); color: var(--text);
+  border-radius: 14px; padding: 12px 14px; margin: 0 0 10px; font-size: 14.5px; line-height: 1.4;
+}
+.banner.soft { background: var(--surface); }
+.banner > .emo { font-size: 20px; }
+.banner .x { appearance: none; border: 0; background: none; color: var(--muted); margin-left: auto; padding: 0 2px; font-size: 16px; }
+
+/* Dernière fois */
+.last { padding: 4px 0 16px; border-bottom: 1px solid var(--line); }
+.last-label { margin: 0; font-size: 15px; color: var(--muted); font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.last-label .emo { font-size: 20px; }
+.last-big { margin: 2px 0 0; font-size: 54px; line-height: 1.05; font-weight: 800; letter-spacing: -.025em; font-variant-numeric: tabular-nums; }
+.last-sub { margin: 4px 0 0; color: var(--muted); font-size: 15px; }
+.mini { display: flex; flex-wrap: wrap; gap: 6px 20px; margin-top: 12px; font-size: 15px; color: var(--muted); }
+.mini .emo { font-size: 18px; margin-right: 6px; vertical-align: -2px; }
+
+/* Journée */
+.dayhead { display: flex; align-items: center; gap: 4px; margin: 18px 0 4px; }
+.dayhead h2 { margin: 0; font-size: 18px; font-weight: 700; min-width: 0; }
+.nav { appearance: none; border: 0; background: none; width: 38px; height: 38px; border-radius: 50%; font-size: 24px; line-height: 1; color: var(--muted); flex: none; }
+.nav:disabled { opacity: .25; cursor: default; }
+.share {
+  margin-left: auto; appearance: none; border: 1.5px solid var(--accent); background: transparent;
+  color: var(--accent); border-radius: 999px; padding: 8px 16px; font-weight: 700; font-size: 14.5px; flex: none;
+}
+.journal { list-style: none; margin: 0; padding: 0; }
+.jl {
+  appearance: none; width: 100%; display: grid; grid-template-columns: 78px 1fr; align-items: center;
+  gap: 8px; background: none; border: 0; border-bottom: 1px solid var(--line); padding: 11px 0; text-align: left;
+}
+.jl time { font-size: 20px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+.jl .emos { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; }
+.jl .emos .emo { font-size: 29px; }
+.jl .note { font-size: 14px; color: var(--muted); margin-left: -2px; }
+.jl.fresh { animation: fresh 1.3s ease-out; }
+@keyframes fresh { from { background: var(--surface-2); } to { background: transparent; } }
+.empty { color: var(--muted); padding: 18px 0; margin: 0; }
+
+.tip { margin-top: 26px; background: var(--surface); border-radius: 18px; padding: 16px 18px; }
+.tip h2 { margin: 0 0 6px; font-size: 15px; color: var(--muted); font-weight: 700; }
+.tip p { margin: 0; font-size: 16.5px; line-height: 1.5; }
+.tip .hint { margin-top: 10px; }
+
+/* Barre d'actions */
+#dock {
+  position: relative; flex: none; z-index: 6; background: var(--bg);
+  border-top: 1px solid var(--line); padding: 10px 0;
+}
+#dock .wrap { position: relative; padding: 0 12px; }
+.grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.qb {
+  appearance: none; border: 0; border-radius: 16px; background: var(--surface); min-height: 66px;
+  padding: 9px 2px 7px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 5px; touch-action: manipulation; transition: transform .08s ease-out; min-width: 0;
+}
+.qb .emo { font-size: 27px; }
+.qb .ql { font-size: 11.5px; font-weight: 600; color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 3px; }
+.qb:active { transform: scale(.93); background: var(--surface-2); }
+.qb.more { background: transparent; border: 1.5px dashed var(--line); }
+.qb.more .plus { font-family: var(--font); font-size: 26px; color: var(--muted); filter: none; font-weight: 400; }
+.toast {
+  position: absolute; left: 12px; right: 12px; bottom: calc(100% + 18px); background: var(--surface-2);
+  border-radius: 16px; padding: 12px 14px; box-shadow: 0 8px 28px rgba(0, 0, 0, .28);
+}
+.toast p { margin: 0 0 9px; font-size: 15px; }
+.toast .emo { font-size: 18px; vertical-align: -2px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.chip {
+  appearance: none; border: 1px solid var(--line); background: var(--surface); border-radius: 999px;
+  padding: 7px 12px; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.chip.undo { border-color: transparent; background: transparent; color: var(--alert); }
+.toast .chip.undo { margin-left: auto; }
+
+/* Feuilles */
+.sheet { position: fixed; inset: 0; z-index: 20; background: var(--scrim); display: flex; align-items: flex-end; }
+.panel {
+  width: 100%; max-width: 560px; margin: 0 auto; background: var(--surface);
+  border-radius: 22px 22px 0 0; padding: 20px 18px calc(20px + env(safe-area-inset-bottom, 0px));
+  max-height: 88vh; overflow: auto;
+}
+.panel h3 { margin: 0 0 12px; font-size: 20px; display: flex; align-items: center; gap: 8px; }
+.panel h3 .emo { font-size: 26px; }
+.panel h4 { margin: 16px 0 8px; font-size: 14px; color: var(--muted); font-weight: 700; }
+.panel .qb { background: var(--bg); }
+.primary, .secondary {
+  display: block; appearance: none; width: 100%; margin-top: 12px; border-radius: 14px;
+  padding: 13px 16px; font-weight: 700; font-size: 16px; text-align: center; text-decoration: none;
+}
+.primary { border: 0; background: var(--accent); color: var(--on-accent); }
+.secondary { border: 1.5px solid var(--line); background: transparent; color: var(--text); }
+.secondary.danger { color: var(--alert); border-color: var(--alert); }
+.ico { width: 20px; height: 20px; vertical-align: -4px; margin-right: 8px; }
+.fld { display: block; margin: 12px 0; }
+.fld > span { display: block; font-size: 13.5px; color: var(--muted); margin-bottom: 5px; font-weight: 600; }
+input[type="text"], input[type="date"], input[type="time"] {
+  width: 100%; color: var(--text); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 12px; padding: 11px 12px; min-height: 46px; font-size: 16px;
+}
+.seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg button {
+  appearance: none; border: 1.5px solid var(--line); background: transparent; border-radius: 999px;
+  padding: 9px 15px; font-weight: 600;
+}
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.seg.big button { flex: 1; padding: 18px 10px; font-size: 18px; border-radius: 16px; }
+.sgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.hint { color: var(--muted); font-size: 13.5px; margin: 6px 0 0; line-height: 1.45; }
+.warn { background: var(--alert-bg); border-radius: 12px; padding: 10px 12px; font-size: 14.5px; margin: 8px 0 0; }
+.edit-list { list-style: none; margin: 0; padding: 0; }
+.edit-list > li { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.er { display: grid; grid-template-columns: auto 1fr 108px auto; align-items: center; gap: 8px; }
+.er .emo { font-size: 24px; }
+.er .el { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.er input[type="time"] { padding: 8px; min-height: 42px; }
+.edit-list .en { margin-top: 8px; }
+pre.preview {
+  white-space: pre-wrap; background: var(--bg); border-radius: 14px; padding: 14px; margin: 12px 0 0;
+  font-family: var(--font); font-size: 17px; line-height: 1.65; user-select: text; -webkit-user-select: text;
+  max-height: 38vh; overflow: auto;
+}
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; }
+.actions .wide { grid-column: 1 / -1; }
+
+/* Santé */
+.sec { margin: 22px 0 6px; font-size: 18px; font-weight: 800; }
+section > .sec:first-child { margin-top: 4px; }
+.vlist { list-style: none; margin: 10px 0 0; padding: 0; }
+.v { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.vh { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.vh strong { font-size: 18px; }
+.vh span { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.v ul { margin: 8px 0 0; padding: 0; list-style: none; font-size: 15px; }
+.v li { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; }
+.v .note { color: var(--muted); font-size: 13px; display: block; }
+.tag { font-size: 12px; font-weight: 700; border-radius: 6px; padding: 2px 7px; white-space: nowrap; align-self: flex-start; }
+.tag.obl { background: var(--accent); color: var(--on-accent); }
+.tag.rec { border: 1px solid var(--line); color: var(--muted); }
+.tag.exa { border: 1px solid var(--accent); color: var(--accent); }
+.vstate { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 14.5px; font-weight: 600; }
+.vstate .chip { margin-left: auto; }
+.vstate.soon { color: var(--accent); }
+.vstate.late { color: var(--alert); }
+.vstate.done { color: var(--ok); }
+.v.done ul { opacity: .55; }
+.foot p { color: var(--muted); font-size: 13.5px; margin: 14px 0 0; }
+
+/* Réglages */
+.btnlist { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
+.btnlist li { display: grid; grid-template-columns: 62px 1fr; gap: 8px; }
+.btnlist .bE { text-align: center; font-size: 24px; padding: 6px; }
+#syncText { margin: 4px 0 0; font-size: 15px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap toprow">
+    <div class="who">
+      <h1 id="babyName">Bébé</h1>
+      <p id="babyAge"></p>
+    </div>
+    <button id="themeBtn" class="icon" type="button" aria-label="Passer en mode nuit">☾</button>
+  </div>
+  <nav class="wrap tabs" role="tablist" aria-label="Sections">
+    <button class="tab" role="tab" type="button" data-tab="jour" aria-selected="true">Journée</button>
+    <button class="tab" role="tab" type="button" data-tab="sante" aria-selected="false">Santé<span class="dot" id="santeDot" hidden></span></button>
+    <button class="tab" role="tab" type="button" data-tab="reglages" aria-selected="false">Réglages</button>
+  </nav>
+</header>
+
+<main id="scroller">
+  <div class="wrap">
+  <section id="tab-jour">
+    <div id="banners"></div>
+    <div id="last" class="last" aria-live="polite"></div>
+    <div class="dayhead">
+      <button class="nav" id="prevDay" type="button" aria-label="Jour précédent">‹</button>
+      <h2 id="dayTitle">Aujourd’hui</h2>
+      <button class="nav" id="nextDay" type="button" aria-label="Jour suivant">›</button>
+      <button class="share" id="shareBtn" type="button">Partager</button>
+    </div>
+    <ol class="journal" id="journal"></ol>
+    <aside class="tip" id="tip"></aside>
+  </section>
+  <section id="tab-sante" hidden></section>
+  <section id="tab-reglages" hidden></section>
+  </div>
+</main>
+
+<div id="dock">
+  <div class="wrap">
+    <div class="toast" id="toast" role="status" hidden></div>
+    <div class="grid" id="grid"></div>
+  </div>
+</div>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="panel" id="panel" role="dialog" aria-modal="true"></div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------- Outils ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const pad = n => String(n).padStart(2, '0');
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const dayKey = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parseDay = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+const shiftDay = (k, n) => { const d = parseDay(k); d.setDate(d.getDate() + n); return dayKey(d); };
+const todayKey = () => dayKey(new Date());
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const fmtTime = ts => { const d = new Date(ts); return `${d.getHours()}h${pad(d.getMinutes())}`; };
+const hhmm = ts => { const d = new Date(ts); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const fmtSlot = ts => {
+  const d = new Date(ts);
+  let h = d.getHours(), m = Math.round(d.getMinutes() / 5) * 5;
+  if (m === 60) { m = 0; h = (h + 1) % 24; }
+  return m ? `${h}h${pad(m)}` : `${h}h`;
+};
+const fmtShort = d => d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+const fmtLong = d => d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+const fmtAgo = ms => {
+  const min = Math.max(0, Math.floor(ms / 60000));
+  if (min < 1) return 'à l’instant';
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60), r = min % 60;
+  return r ? `${h} h ${pad(r)}` : `${h} h`;
+};
+const buzz = () => { try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) {} };
+function addMonths(date, m) {
+  const d = new Date(date.getFullYear(), date.getMonth(), 1);
+  d.setMonth(d.getMonth() + m);
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(date.getDate(), last));
+  return d;
+}
+function firstGrapheme(s) {
+  if (!s) return '';
+  try {
+    if (window.Intl && Intl.Segmenter) {
+      const it = new Intl.Segmenter('fr', { granularity: 'grapheme' }).segment(s)[Symbol.iterator]().next();
+      return it.value ? it.value.segment : '';
+    }
+  } catch (e) {}
+  return Array.from(s)[0] || '';
+}
+
+/* ---------- Catalogue ---------- */
+const CATALOG = {
+  biberon:  { e: '🍼', l: 'Biberon', feed: 1 },
+  caca:     { e: '💩', l: 'Caca' },
+  pipi:     { e: '💧', l: 'Pipi' },
+  toilette: { e: '🚿', l: 'Toilette' },
+  dodo:     { e: '😴', l: 'Dodo' },
+  pleurs:   { e: '😭', l: 'Pleurs' },
+  crise:    { e: '🧨', l: 'Prout' },
+  vitamine: { e: '💊', l: 'Vitamine' },
+  jeu:      { e: '🛹', l: 'Jeu' },
+  tetee:    { e: '🤱', l: 'Tétée', feed: 1, opts: ['gauche', 'droit'] },
+  eveil:    { e: '👀', l: 'Éveil' },
+  bain:     { e: '🛁', l: 'Bain' },
+  soin:     { e: '🧴', l: 'Soin' },
+  regurg:   { e: '🤮', l: 'Régurgitation' },
+  temp:     { e: '🌡️', l: 'Température', note: 'Ex. 37,8' },
+  pediatre: { e: '🩺', l: 'Pédiatre', note: 'Motif, remarques' },
+  pesee:    { e: '⚖️', l: 'Pesée PMI', note: 'Ex. 4,2' },
+  vaccin:   { e: '💉', l: 'Vaccin', note: 'Lesquels ?' },
+  premiere: { e: '🎉', l: 'Première fois', note: 'Ex. premier sourire' }
+};
+const QUICK = ['biberon', 'caca', 'pipi', 'toilette', 'dodo', 'pleurs', 'crise', 'vitamine', 'jeu'];
+const EXTRAS = ['tetee', 'eveil', 'bain', 'soin', 'regurg', 'temp'];
+const EVENTS = ['pediatre', 'pesee', 'vaccin', 'premiere'];
+
+/* Calendrier vaccinal 2026, bébés nés depuis le 1er janvier 2025 */
+const SCHEDULE = [
+  { id: 'vrs', d: 0, title: 'À la naissance', items: [{ n: 'Protection contre la bronchiolite (VRS)', k: 'rec', s: 'Si maman n’a pas été vaccinée pendant la grossesse, en période d’épidémie.' }] },
+  { id: 'j8', d: 8, title: '8e jour', items: [{ n: 'Examen du 8e jour', k: 'exa', s: 'Premier certificat de santé.' }] },
+  { id: 'm2', m: 2, title: '2 mois', items: [{ n: 'Diphtérie, tétanos, polio, coqueluche, Hib, hépatite B', k: 'obl', s: 'Un seul vaccin, dit hexavalent.' }, { n: 'Pneumocoque', k: 'obl' }, { n: 'Rotavirus, 1re dose', k: 'rec' }] },
+  { id: 'm3', m: 3, title: '3 mois', items: [{ n: 'Méningocoque B', k: 'obl' }, { n: 'Rotavirus, 2e dose', k: 'rec' }] },
+  { id: 'm4', m: 4, title: '4 mois', items: [{ n: 'Hexavalent, 2e dose', k: 'obl' }, { n: 'Pneumocoque, 2e dose', k: 'obl' }, { n: 'Rotavirus, 3e dose selon le vaccin', k: 'rec' }] },
+  { id: 'm5', m: 5, title: '5 mois', items: [{ n: 'Méningocoque B, 2e dose', k: 'obl' }] },
+  { id: 'm6', m: 6, title: '6 mois', items: [{ n: 'Méningocoques ACWY', k: 'obl' }] },
+  { id: 'm11', m: 11, title: '11 mois', items: [{ n: 'Hexavalent, rappel', k: 'obl' }, { n: 'Pneumocoque, rappel', k: 'obl' }] },
+  { id: 'm12', m: 12, title: '12 mois', items: [{ n: 'Rougeole, oreillons, rubéole (ROR)', k: 'obl' }, { n: 'Méningocoques ACWY, rappel', k: 'obl' }, { n: 'Méningocoque B, rappel', k: 'obl' }] },
+  { id: 'm16', m: 16, title: '16 à 18 mois', items: [{ n: 'ROR, 2e dose', k: 'obl' }] }
+];
+const TAGS = { obl: 'Obligatoire', rec: 'Recommandé', exa: 'Examen' };
+
+const TIPS = {
+  all: [
+    'Pour dormir : sur le dos, dans son propre lit, sans oreiller, couette ni tour de lit. Une gigoteuse adaptée à sa taille suffit.',
+    'Ne jamais secouer un bébé. Si les pleurs deviennent trop durs à supporter, couchez-le sur le dos dans son lit, sortez de la pièce quelques minutes et appelez quelqu’un.',
+    'En voiture, siège auto dos à la route, même pour un trajet de cinq minutes.',
+    'Ne laissez jamais bébé seul dans le bain, même quelques secondes : préparez tout avant de commencer.'
+  ],
+  b0: [
+    'Le peau à peau apaise bébé et vous aide à faire connaissance, au sein comme au biberon.',
+    'Le baby blues est fréquent dans les jours qui suivent la naissance. S’il dure plus de deux semaines, parlez-en à votre sage-femme ou à votre médecin.',
+    'L’examen du 8e jour est obligatoire : il donne lieu au premier certificat de santé, à garder avec le carnet.',
+    'Dormez quand bébé dort, et acceptez l’aide qu’on vous propose : repas, courses, linge.'
+  ],
+  b1: [
+    'Les pleurs augmentent souvent pendant les premières semaines. C’est fréquent, et ça finit par diminuer.',
+    'Avant 3 mois, une fièvre à 38 °C ou plus justifie de consulter rapidement.',
+    'Un peu de temps sur le ventre, éveillé et sous vos yeux, l’aide à muscler sa nuque.',
+    'Un entretien postnatal vous est proposé dans les semaines qui suivent la naissance : c’est un temps pour vous, pas pour bébé.'
+  ],
+  b2: [
+    'Les premiers sourires en réponse arrivent souvent à cet âge : répondez-lui, c’est déjà une conversation.',
+    'Parlez-lui, chantez, décrivez ce que vous faites : il reconnaît déjà votre voix.',
+    'Avant 3 mois, une fièvre à 38 °C ou plus justifie de consulter rapidement.',
+    'Les vaccins des 2 mois sont les premiers du calendrier : prenez rendez-vous à l’avance, les agendas se remplissent vite.'
+  ],
+  b3: [
+    'Bébé attrape de plus en plus les objets : vérifiez que rien de petit ne traîne à sa portée.',
+    'La diversification alimentaire se discute avec votre pédiatre, entre 4 et 6 mois.',
+    'Pas d’écran pour les tout-petits : jeux simples, voix et visages sont ce qui le fait progresser.',
+    'Lisez-lui des imagiers : même tout petit, il aime les images contrastées et votre voix.'
+  ],
+  b4: [
+    'Bébé va bientôt se déplacer : c’est le moment de sécuriser prises, escaliers et produits ménagers.',
+    'Gardez le carnet de santé à jour : les rappels de 11 et 12 mois sont importants.',
+    'Pas d’écran pour les tout-petits : jeux simples, voix et visages sont ce qui le fait progresser.'
+  ]
+};
+
+/* ---------- Stockage local ---------- */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} }
+};
+const blankProfile = () => ({ name: '', birth: '', sex: '', buttons: {}, vacc: {} });
+let profile = Object.assign(blankProfile(), store.get('bb.profile', {}));
+let days = store.get('bb.days', {});
+let prefs = Object.assign({ theme: 'auto', lastShare: 0, seenFever: {}, onboarded: 0 }, store.get('bb.prefs', {}));
+let profilePending = store.get('bb.profilePending', false);
+const saveDays = () => store.set('bb.days', days);
+const savePrefs = () => store.set('bb.prefs', prefs);
+
+const ty = k => {
+  const base = CATALOG[k] || { e: '❔', l: 'Autre' };
+  const o = (profile.buttons || {})[k] || {};
+  return { e: o.e || base.e, l: o.l || base.l };
+};
+
+/* ---------- État d'interface ---------- */
+let tab = 'jour';
+let currentToday = todayKey();
+let viewDay = currentToday;
+let freshId = null;
+
+/* ---------- Événements ---------- */
+const eventsOf = day => Object.entries(days[day] || {})
+  .filter(([, e]) => e && !e.x && CATALOG[e.t])
+  .map(([id, e]) => Object.assign({ id, day }, e))
+  .sort((a, b) => a.ts - b.ts);
+const recent = () => [...eventsOf(shiftDay(todayKey(), -1)), ...eventsOf(todayKey())];
+function groupsOf(evs) {
+  const out = [];
+  for (const ev of evs) {
+    const g = out[out.length - 1];
+    if (g && ev.ts - g.start < 15 * 60000) g.items.push(ev);
+    else out.push({ start: ev.ts, items: [ev] });
+  }
+  return out;
+}
+function fmtNote(e) {
+  const n = String(e.n || '').trim();
+  if (!n) return '';
+  const num = /^\d+([.,]\d+)?$/.test(n);
+  if (num && e.t === 'temp') return n + ' °C';
+  if (num && e.t === 'pesee') return n + ' kg';
+  return n;
+}
+function addEvent(t, n = '', ts = Date.now()) {
+  const day = dayKey(new Date(ts));
+  const id = uid();
+  if (!days[day]) days[day] = {};
+  days[day][id] = { t, ts, n, x: 0, p: 1 };
+  saveDays();
+  pushEvent(day, id);
+  return { day, id };
+}
+function setEvent(day, id, patch) {
+  const ev = days[day] && days[day][id];
+  if (!ev) return { day, id };
+  if (patch.ts != null && dayKey(new Date(patch.ts)) !== day) {
+    const nd = dayKey(new Date(patch.ts));
+    days[day][id] = Object.assign({}, ev, { x: 1, p: 1 });
+    pushEvent(day, id);
+    const nid = uid();
+    if (!days[nd]) days[nd] = {};
+    days[nd][nid] = { t: ev.t, ts: patch.ts, n: patch.n != null ? patch.n : (ev.n || ''), x: 0, p: 1 };
+    saveDays();
+    pushEvent(nd, nid);
+    return { day: nd, id: nid };
+  }
+  Object.assign(ev, patch, { p: 1 });
+  saveDays();
+  pushEvent(day, id);
+  return { day, id };
+}
+const removeEvent = (day, id) => setEvent(day, id, { x: 1 });
+
+/* ---------- Synchronisation (journal partagé) ---------- */
+let db = null, readOnly = false;
+const chains = {}, pushTimers = {}, subs = {};
+let profUnsub = null, profTimer = null;
+
+function enqueue(key, fn) {
+  chains[key] = (chains[key] || Promise.resolve()).then(fn).catch(onDbError);
+}
+function onDbError(e) {
+  const c = e && e.code;
+  if (c === 'invalid_argument') readOnly = true;
+  else if (['revoked', 'not_granted', 'capability_disabled', 'capability_removed'].includes(c)) { unsubAll(); db = null; }
+  renderSync();
+}
+function unsubAll() {
+  for (const d of Object.keys(subs)) { try { subs[d](); } catch (e) {} delete subs[d]; }
+  if (profUnsub) { try { profUnsub(); } catch (e) {} profUnsub = null; }
+}
+function pushEvent(day, id) {
+  if (!db) return;
+  const key = day + '/' + id;
+  clearTimeout(pushTimers[key]);
+  pushTimers[key] = setTimeout(() => enqueue('d:' + day, async () => {
+    const ev = days[day] && days[day][id];
+    if (!ev || !db) return;
+    const sent = { t: ev.t, ts: ev.ts, n: ev.n || '', x: ev.x ? 1 : 0 };
+    const body = { events: { [id]: sent } };
+    const ref = db.doc('days/' + day);
+    try {
+      await ref.update(body);
+    } catch (e) {
+      if (e && e.code === 'invalid_argument') {
+        const snap = await ref.get();
+        if (snap.exists) throw e;
+        await ref.set(body);
+      } else throw e;
+    }
+    const cur = days[day] && days[day][id];
+    if (cur && cur.ts === sent.ts && (cur.x ? 1 : 0) === sent.x && (cur.n || '') === sent.n) { cur.p = 0; saveDays(); }
+  }), 350);
+}
+function saveProfile() {
+  store.set('bb.profile', profile);
+  profilePending = true;
+  store.set('bb.profilePending', true);
+  clearTimeout(profTimer);
+  profTimer = setTimeout(pushProfile, 500);
+}
+function pushProfile() {
+  if (!db) return;
+  enqueue('profile', async () => {
+    if (!db) return;
+    const sent = JSON.stringify(profile);
+    await db.doc('family/profile').set(JSON.parse(sent));
+    if (JSON.stringify(profile) === sent) { profilePending = false; store.set('bb.profilePending', false); }
+  });
+}
+function applyRemoteProfile(d) {
+  d = d || {};
+  const obj = v => (v && typeof v === 'object' && !Array.isArray(v)) ? JSON.parse(JSON.stringify(v)) : {};
+  profile = Object.assign(blankProfile(), {
+    name: String(d.name || ''),
+    birth: /^\d{4}-\d{2}-\d{2}$/.test(String(d.birth || '')) ? d.birth : '',
+    sex: ['f', 'm'].includes(d.sex) ? d.sex : '',
+    buttons: obj(d.buttons),
+    vacc: obj(d.vacc)
+  });
+  store.set('bb.profile', profile);
+}
+function subscribeDay(day) {
+  try {
+    subs[day] = db.doc('days/' + day).onSnapshot(snap => {
+      const data = snap.exists ? (snap.data() || {}) : {};
+      const remote = (data.events && typeof data.events === 'object') ? data.events : {};
+      const merged = {};
+      for (const [id, e] of Object.entries(remote)) {
+        if (e && typeof e === 'object') merged[id] = { t: String(e.t || ''), ts: Number(e.ts) || 0, n: String(e.n || ''), x: e.x ? 1 : 0, p: 0 };
+      }
+      for (const [id, e] of Object.entries(days[day] || {})) if (e && e.p) merged[id] = e;
+      days[day] = merged;
+      saveDays();
+      render();
+    }, err => { delete subs[day]; onDbError(err); });
+  } catch (e) { onDbError(e); }
+}
+function ensureSubs() {
+  if (!db) return;
+  const t = todayKey();
+  const want = new Set([t, shiftDay(t, -1), viewDay]);
+  for (const d of Object.keys(subs)) if (!want.has(d)) { try { subs[d](); } catch (e) {} delete subs[d]; }
+  for (const d of want) if (!subs[d]) subscribeDay(d);
+}
+async function initDb() {
+  try {
+    if (!window.claude || typeof window.claude.use !== 'function') return;
+    const d = await window.claude.use('db');
+    if (!d) return;
+    db = d;
+    try {
+      const snap = await db.doc('family/profile').get();
+      if (profilePending || (!snap.exists && (profile.birth || profile.name))) pushProfile();
+      else if (snap.exists) applyRemoteProfile(snap.data());
+    } catch (e) { onDbError(e); if (!db) return; }
+    for (const [day, evs] of Object.entries(days)) for (const [id, e] of Object.entries(evs || {})) if (e && e.p) pushEvent(day, id);
+    profUnsub = db.doc('family/profile').onSnapshot(snap => {
+      if (!snap.exists || profilePending) return;
+      applyRemoteProfile(snap.data());
+      render();
+    }, err => onDbError(err));
+    ensureSubs();
+    render(true);
+  } catch (e) { db = null; }
+}
+
+/* ---------- Âge, alertes ---------- */
+function ageDays() {
+  if (!profile.birth) return null;
+  return Math.round((parseDay(todayKey()) - parseDay(profile.birth)) / 86400000);
+}
+function ageLabel() {
+  const d = ageDays();
+  if (d == null) return '';
+  if (d < 0) return 'Naissance à venir';
+  if (d === 0) return 'Jour de naissance';
+  if (d < 14) return `${d} jour${d > 1 ? 's' : ''}`;
+  if (d < 61) { const w = Math.floor(d / 7), r = d % 7; return r ? `${w} sem. et ${r} j` : `${w} semaines`; }
+  const b = parseDay(profile.birth), t = parseDay(todayKey());
+  let m = (t.getFullYear() - b.getFullYear()) * 12 + (t.getMonth() - b.getMonth());
+  if (t.getDate() < b.getDate()) m--;
+  const w = Math.floor(Math.round((t - addMonths(b, m)) / 86400000) / 7);
+  return w > 0 ? `${m} mois et ${w} sem.` : `${m} mois`;
+}
+function scheduleRows() {
+  if (!profile.birth) return [];
+  const b = parseDay(profile.birth), t = parseDay(todayKey());
+  return SCHEDULE.map(g => {
+    const date = g.m != null ? addMonths(b, g.m) : new Date(b.getFullYear(), b.getMonth(), b.getDate() + g.d);
+    return Object.assign({}, g, {
+      date,
+      diff: Math.round((date - t) / 86400000),
+      done: (profile.vacc || {})[g.id] || 0,
+      mandatory: g.items.some(i => i.k !== 'rec')
+    });
+  });
+}
+function dueRow() {
+  const c = scheduleRows().filter(r => !r.done && r.mandatory && r.diff <= 21 && r.diff >= -30);
+  return c.find(r => r.diff >= 0) || c[0];
+}
+const agoText = ms => { const a = fmtAgo(ms); return a === 'à l’instant' ? a : `il y a ${a}`; };
+function feverEv() {
+  const a = ageDays();
+  if (a != null && a >= 91) return null;
+  const now = Date.now();
+  return recent().filter(e => e.t === 'temp' && now - e.ts < 12 * 3600000 && !prefs.seenFever[e.id])
+    .find(e => { const v = parseFloat(String(e.n).replace(',', '.')); return v >= 38 && v < 45; });
+}
+const FEVER_MSG = 'Avant 3 mois, une fièvre à 38 °C ou plus justifie de consulter rapidement : appelez votre médecin, ou le 15 en cas d’urgence.';
+
+/* ---------- Rendu ---------- */
+function render(force) {
+  renderHeader();
+  renderTabs();
+  renderGrid();
+  if (tab === 'jour') renderJour();
+  else if (tab === 'sante') renderSante();
+  else if (tab === 'reglages') {
+    const el = $('#tab-reglages');
+    if (force || !el.contains(document.activeElement)) renderReglages();
+  }
+}
+function renderHeader() {
+  $('#babyName').textContent = profile.name || 'Bébé';
+  $('#babyAge').textContent = ageLabel() || 'Date de naissance à ajouter dans Réglages';
+}
+function renderTabs() {
+  document.querySelectorAll('.tab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
+  $('#tab-jour').hidden = tab !== 'jour';
+  $('#tab-sante').hidden = tab !== 'sante';
+  $('#tab-reglages').hidden = tab !== 'reglages';
+  $('#dock').hidden = tab !== 'jour';
+  $('#santeDot').hidden = !dueRow();
+}
+function renderGrid() {
+  $('#grid').innerHTML = QUICK.map(k => {
+    const c = ty(k);
+    return `<button class="qb" type="button" data-k="${k}" aria-label="Noter : ${esc(c.l)}"><span class="emo">${esc(c.e)}</span><span class="ql">${esc(c.l)}</span></button>`;
+  }).join('') + '<button class="qb more" type="button" id="moreBtn" aria-label="Noter autre chose"><span class="emo plus">+</span><span class="ql">Plus</span></button>';
+}
+function renderJour() {
+  const out = [];
+  const f = feverEv();
+  if (f) out.push(`<div class="banner" role="alert"><span class="emo">🌡️</span><span>${esc(fmtNote(f))} notée à ${fmtTime(f.ts)}. ${FEVER_MSG}</span><button class="x" type="button" data-fever="${esc(f.id)}" aria-label="Masquer l’alerte">✕</button></div>`);
+  const r = dueRow();
+  if (r) {
+    const isVacc = r.items.some(i => i.k === 'obl');
+    const label = isVacc ? `Vaccins des ${r.title}` : r.items[0].n;
+    let txt;
+    if (r.diff > 1) txt = `${label} dans ${r.diff} jours : prenez rendez-vous.`;
+    else if (r.diff === 1) txt = `${label} demain.`;
+    else if (r.diff === 0) txt = `${label} : c’est aujourd’hui.`;
+    else txt = `${label} : la date est passée. Si c’est fait, cochez-le dans Santé.`;
+    out.push(`<button class="banner soft" type="button" data-go="sante"><span class="emo">${isVacc ? '💉' : '🩺'}</span><span>${esc(txt)}</span></button>`);
+  }
+  $('#banners').innerHTML = out.join('');
+  renderLast();
+  renderJournal();
+  renderTip();
+}
+function renderLast() {
+  const ev = recent(), now = Date.now(), el = $('#last');
+  const last = types => { for (let i = ev.length - 1; i >= 0; i--) if (types.includes(ev[i].t)) return ev[i]; return null; };
+  if (!ev.length) {
+    el.innerHTML = '<p class="last-label">Rien de noté depuis hier</p><p class="last-sub">Touchez une icône en bas de l’écran : l’heure s’enregistre toute seule. Vous pourrez la corriger juste après.</p>';
+    return;
+  }
+  let html = '';
+  const feed = last(['biberon', 'tetee']);
+  if (feed) {
+    const c = ty(feed.t);
+    let extra = '';
+    if (feed.t === 'tetee' && feed.n) {
+      const s = feed.n.toLowerCase();
+      if (s === 'gauche') extra = ', prochain sein : droit';
+      if (s === 'droit') extra = ', prochain sein : gauche';
+    }
+    const ago = fmtAgo(now - feed.ts);
+    html += `<p class="last-label"><span class="emo">${esc(c.e)}</span>${ago === 'à l’instant' ? 'Dernier repas' : 'Dernier repas, il y a'}</p><p class="last-big">${ago === 'à l’instant' ? 'À l’instant' : ago}</p><p class="last-sub">à ${fmtTime(feed.ts)}, ${esc(c.l.toLowerCase())}${extra}</p>`;
+  } else {
+    html += '<p class="last-label">Aucun repas noté depuis hier</p>';
+  }
+  const minis = ['caca', 'pipi', 'dodo'].map(k => last([k])).filter(Boolean);
+  if (minis.length) html += `<div class="mini">${minis.map(e => `<span><span class="emo">${esc(ty(e.t).e)}</span>${agoText(now - e.ts)}</span>`).join('')}</div>`;
+  el.innerHTML = html;
+}
+function renderJournal() {
+  const t = todayKey();
+  $('#dayTitle').textContent = viewDay === t ? 'Aujourd’hui' : viewDay === shiftDay(t, -1) ? 'Hier' : fmtShort(parseDay(viewDay));
+  $('#nextDay').disabled = viewDay >= t;
+  const gs = groupsOf(eventsOf(viewDay));
+  const j = $('#journal');
+  if (!gs.length) {
+    j.innerHTML = `<li class="empty">${viewDay === t ? 'Rien de noté aujourd’hui pour l’instant.' : 'Rien de noté ce jour-là.'}</li>`;
+    $('#shareBtn').disabled = true;
+    return;
+  }
+  $('#shareBtn').disabled = false;
+  j.innerHTML = gs.map(g => {
+    const labels = g.items.map(e => ty(e.t).l).join(', ');
+    const fresh = g.items.some(e => e.id === freshId) ? ' fresh' : '';
+    const emos = g.items.map(e => `<span class="emo" title="${esc(ty(e.t).l)}">${esc(ty(e.t).e)}</span>${e.n ? `<span class="note">${esc(fmtNote(e))}</span>` : ''}`).join('');
+    return `<li><button class="jl${fresh}" type="button" data-ids="${esc(g.items.map(e => e.id).join(','))}" aria-label="${fmtSlot(g.start)} : ${esc(labels)}. Modifier"><time>${fmtSlot(g.start)}</time><span class="emos">${emos}</span></button></li>`;
+  }).join('');
+}
+function renderTip() {
+  const a = ageDays();
+  const bucket = a == null || a < 0 ? [] : a < 14 ? TIPS.b0 : a < 42 ? TIPS.b1 : a < 91 ? TIPS.b2 : a < 181 ? TIPS.b3 : TIPS.b4;
+  const pool = bucket.concat(TIPS.all);
+  const n = Math.floor(parseDay(todayKey()).getTime() / 86400000);
+  $('#tip').innerHTML = `<h2>Le conseil du jour</h2><p>${esc(pool[n % pool.length])}</p><p class="hint">Repères généraux, à adapter avec votre sage-femme ou votre pédiatre. Pour aller plus loin : <a href="https://www.1000-premiers-jours.fr" target="_blank" rel="noopener">1000-premiers-jours.fr</a></p>`;
+}
+function renderSante() {
+  const el = $('#tab-sante');
+  if (!profile.birth) {
+    el.innerHTML = '<h2 class="sec">Vaccins et rendez-vous</h2><p>La date de naissance permet de calculer chaque rendez-vous et de vous prévenir trois semaines avant.</p><button class="primary" type="button" data-go="reglages">Ajouter la date de naissance</button>';
+    return;
+  }
+  el.innerHTML = `<h2 class="sec">Vaccins et rendez-vous</h2><p class="hint">Calculés à partir de la naissance, le ${esc(fmtLong(parseDay(profile.birth)))}. Une alerte apparaît dans Journée trois semaines avant chaque rendez-vous.</p><ol class="vlist">${scheduleRows().map(rowHtml).join('')}</ol><div class="foot"><p>Calendrier vaccinal 2026, pour les bébés nés depuis le 1er janvier 2025. Le BCG n’est proposé qu’aux enfants exposés à un risque élevé de tuberculose.</p><p>Dates indicatives : votre pédiatre les ajuste selon votre bébé. Référence officielle : <a href="https://vaccination-info-service.fr" target="_blank" rel="noopener">vaccination-info-service.fr</a></p></div>`;
+}
+function rowHtml(r) {
+  let state = '', cls = '', btn = '';
+  if (r.done) { state = `Fait le ${fmtShort(new Date(r.done))}`; cls = 'done'; btn = `<button class="chip" type="button" data-undone="${r.id}">Annuler</button>`; }
+  else if (r.diff < 0) { state = 'Date passée : à faire, ou à cocher si c’est fait'; cls = 'late'; }
+  else if (r.diff === 0) { state = 'C’est aujourd’hui'; cls = 'soon'; }
+  else if (r.diff <= 21) { state = r.diff === 1 ? 'Demain' : `Dans ${r.diff} jours : prenez rendez-vous`; cls = 'soon'; }
+  if (!r.done && r.diff <= 21) btn = `<button class="chip" type="button" data-done="${r.id}">C’est fait</button>`;
+  const items = r.items.map(i => `<li><span>${esc(i.n)}${i.s ? `<span class="note">${esc(i.s)}</span>` : ''}</span><span class="tag ${i.k}">${TAGS[i.k]}</span></li>`).join('');
+  return `<li class="v ${cls}"><div class="vh"><strong>${esc(r.title)}</strong><span>${esc(fmtShort(r.date))}</span></div><ul>${items}</ul>${state || btn ? `<div class="vstate ${cls}"><span>${esc(state)}</span>${btn}</div>` : ''}</li>`;
+}
+function renderReglages() {
+  const seg = (id, list, cur) => `<div class="seg" id="${id}">${list.map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${cur === v}">${l}</button>`).join('')}</div>`;
+  $('#tab-reglages').innerHTML = `
+    <h2 class="sec">Bébé</h2>
+    <label class="fld"><span>Prénom</span><input type="text" id="sName" value="${esc(profile.name)}" autocomplete="off" placeholder="Prénom"></label>
+    <label class="fld"><span>Date de naissance</span><input type="date" id="sBirth" value="${esc(profile.birth)}" max="${todayKey()}"></label>
+    <div class="fld"><span>Sexe</span>${seg('sSex', [['f', 'Fille'], ['m', 'Garçon'], ['', 'Non précisé']], profile.sex)}<p class="hint">Servira aux courbes de croissance. Aucun effet sur les vaccins.</p></div>
+    <h2 class="sec">Affichage</h2>
+    ${seg('sTheme', [['auto', 'Auto'], ['light', 'Jour'], ['dark', 'Nuit']], prefs.theme)}
+    <p class="hint">Auto passe en mode nuit de 20 h à 7 h, ou quand le téléphone est en mode sombre. La nuit, le fond reste noir et les emojis passent en tons chauds.</p>
+    <h2 class="sec">Boutons rapides</h2>
+    <p class="hint">Gardez vos propres emojis : changez l’icône ou le nom de chaque bouton.</p>
+    <ul class="btnlist">${QUICK.map(k => { const c = ty(k); return `<li><input type="text" class="bE" data-k="${k}" value="${esc(c.e)}" aria-label="Emoji du bouton ${esc(c.l)}"><input type="text" class="bL" data-k="${k}" value="${esc(c.l)}" maxlength="14" aria-label="Nom du bouton ${esc(c.l)}"></li>`; }).join('')}</ul>
+    <button class="secondary" type="button" id="sResetBtns">Rétablir les boutons d’origine</button>
+    <h2 class="sec">Journal à deux</h2>
+    <p id="syncText"></p>
+    <h2 class="sec">Données</h2>
+    <button class="secondary danger" type="button" id="sClear">Effacer les données de cet appareil</button>`;
+  renderSync();
+}
+function renderSync() {
+  const el = $('#syncText');
+  if (!el) return;
+  if (db && !readOnly) el.textContent = 'Journal synchronisé. Partagez cette page avec le droit de la modifier : vous remplirez le même journal à deux, en direct, chacun sur son téléphone.';
+  else if (db) el.textContent = 'Vous consultez ce journal en lecture seule.';
+  else el.textContent = 'Journal enregistré sur cet appareil uniquement.';
+}
+function applyTheme() {
+  const t = prefs.theme, h = new Date().getHours();
+  const sys = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const dark = t === 'dark' || (t === 'auto' && (sys || h >= 20 || h < 7));
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  const m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.setAttribute('content', dark ? '#000000' : '#E7E0D3');
+  const b = $('#themeBtn');
+  b.textContent = dark ? '☀\uFE0E' : '☾';
+  b.setAttribute('aria-label', dark ? 'Passer en mode jour' : 'Passer en mode nuit');
+}
+
+/* ---------- Feuilles ---------- */
+const sheet = $('#sheet'), panel = $('#panel');
+let onSheetClose = null;
+function openSheet(html, mount) {
+  panel.onclick = null; panel.oninput = null; panel.onchange = null;
+  panel.innerHTML = html;
+  sheet.hidden = false;
+  document.body.style.overflow = 'hidden';
+  if (mount) mount(panel);
+  const f = panel.querySelector('[autofocus]');
+  if (f) setTimeout(() => f.focus(), 60);
+}
+function closeSheet() {
+  if (sheet.hidden) return;
+  sheet.hidden = true;
+  panel.innerHTML = '';
+  panel.onclick = null; panel.oninput = null; panel.onchange = null;
+  document.body.style.overflow = '';
+  const cb = onSheetClose; onSheetClose = null;
+  if (cb) cb();
+}
+sheet.addEventListener('click', e => { if (e.target === sheet || e.target.closest('[data-close]')) closeSheet(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+
+/* ---------- Saisie ---------- */
+let toastState = null, toastTimer = null;
+function afterLog(r) {
+  buzz();
+  if (viewDay !== r.day) { viewDay = r.day; ensureSubs(); }
+  freshId = r.id;
+  setTimeout(() => { freshId = null; }, 1400);
+  showToast(r.day, r.id);
+  render();
+}
+function logType(k) {
+  const cat = CATALOG[k] || {};
+  if (cat.note || cat.opts) { openNote(k); return; }
+  closeSheet();
+  afterLog(addEvent(k));
+}
+function showToast(day, id) { toastState = { day, id }; drawToast(); armToast(); }
+function armToast() { clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, 8000); }
+function hideToast() { toastState = null; $('#toast').hidden = true; }
+function drawToast() {
+  const s = toastState, ev = s && days[s.day] && days[s.day][s.id];
+  if (!ev || ev.x) { hideToast(); return; }
+  const c = ty(ev.t);
+  const t = $('#toast');
+  t.innerHTML = `<p>Noté à <strong>${fmtTime(ev.ts)}</strong> : <span class="emo">${esc(c.e)}</span> ${esc(c.l)}. C’était plus tôt ?</p><div class="chips"><button class="chip" type="button" data-shift="-5">−5 min</button><button class="chip" type="button" data-shift="-15">−15 min</button><button class="chip" type="button" data-shift="-30">−30 min</button><button class="chip undo" type="button" data-undo>Annuler</button></div>`;
+  t.hidden = false;
+}
+$('#toast').addEventListener('click', e => {
+  const s = toastState;
+  if (!s) return;
+  const sh = e.target.closest('[data-shift]');
+  if (sh) {
+    const ev = days[s.day] && days[s.day][s.id];
+    if (!ev) return;
+    toastState = setEvent(s.day, s.id, { ts: ev.ts + Number(sh.dataset.shift) * 60000 });
+    if (viewDay !== toastState.day) { viewDay = toastState.day; ensureSubs(); }
+    buzz(); drawToast(); armToast(); render();
+    return;
+  }
+  if (e.target.closest('[data-undo]')) { removeEvent(s.day, s.id); hideToast(); buzz(); render(); }
+});
+function openMore() {
+  const btn = k => { const c = ty(k); return `<button class="qb" type="button" data-k="${k}"><span class="emo">${esc(c.e)}</span><span class="ql">${esc(c.l)}</span></button>`; };
+  openSheet(`<h3>Noter autre chose</h3><h4>Moments du quotidien</h4><div class="sgrid">${EXTRAS.map(btn).join('')}</div><h4>Événements marquants</h4><div class="sgrid">${EVENTS.map(btn).join('')}</div><button class="secondary" type="button" data-close>Fermer</button>`, p => {
+    p.onclick = e => { const b = e.target.closest('[data-k]'); if (b) logType(b.dataset.k); };
+  });
+}
+function openNote(k) {
+  const c = ty(k), cat = CATALOG[k];
+  if (cat.opts) {
+    openSheet(`<h3><span class="emo">${esc(c.e)}</span>${esc(c.l)}</h3><p class="hint">Quel sein ?</p><div class="seg big">${cat.opts.map(o => `<button type="button" data-o="${o}">${o[0].toUpperCase() + o.slice(1)}</button>`).join('')}</div><button class="secondary" type="button" data-o="">Sans préciser</button>`, p => {
+      p.onclick = e => { const b = e.target.closest('[data-o]'); if (!b) return; closeSheet(); afterLog(addEvent(k, b.dataset.o)); };
+    });
+    return;
+  }
+  const decimal = k === 'temp' || k === 'pesee';
+  const unit = k === 'temp' ? 'en °C, facultatif' : k === 'pesee' ? 'poids en kg, facultatif' : 'facultatif';
+  openSheet(`<h3><span class="emo">${esc(c.e)}</span>${esc(c.l)}</h3><label class="fld"><span>Précision, ${unit}</span><input type="text" id="noteIn" placeholder="${esc(cat.note)}" autocomplete="off" ${decimal ? 'inputmode="decimal"' : ''} autofocus></label><p class="warn" id="noteWarn" hidden></p><button class="primary" type="button" id="noteOk">Noter à ${fmtTime(Date.now())}</button><button class="secondary" type="button" data-close>Annuler</button>`, p => {
+    const inp = $('#noteIn', p), warn = $('#noteWarn', p);
+    p.oninput = () => {
+      if (k !== 'temp') return;
+      const v = parseFloat(inp.value.replace(',', '.')), a = ageDays();
+      const show = v >= 38 && v < 45 && (a == null || a < 91);
+      warn.hidden = !show;
+      if (show) warn.textContent = FEVER_MSG;
+    };
+    const go = () => { const n = inp.value.trim(); closeSheet(); afterLog(addEvent(k, n)); };
+    p.onclick = e => { if (e.target.closest('#noteOk')) go(); };
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
+  });
+}
+function openGroup(day, ids) {
+  const live = () => ids.map(id => Object.assign({ id }, (days[day] || {})[id])).filter(e => e.t && !e.x && CATALOG[e.t]);
+  const evs = live();
+  if (!evs.length) return;
+  openSheet(`<h3>Modifier ce moment</h3><ul class="edit-list">${evs.map(e => {
+    const c = ty(e.t), cat = CATALOG[e.t];
+    return `<li data-id="${esc(e.id)}"><div class="er"><span class="emo">${esc(c.e)}</span><span class="el">${esc(c.l)}</span><input type="time" value="${hhmm(e.ts)}" aria-label="Heure : ${esc(c.l)}"><button class="chip undo" type="button" data-del aria-label="Supprimer : ${esc(c.l)}">Supprimer</button></div>${(cat.note || cat.opts) ? `<input type="text" class="en" value="${esc(e.n || '')}" placeholder="Précision" aria-label="Précision : ${esc(c.l)}">` : ''}</li>`;
+  }).join('')}</ul><button class="primary" type="button" data-close>Terminé</button>`, p => {
+    p.onchange = e => {
+      const li = e.target.closest('li[data-id]');
+      if (!li) return;
+      const id = li.dataset.id;
+      if (e.target.type === 'time' && e.target.value) {
+        const [h, m] = e.target.value.split(':').map(Number);
+        const d = parseDay(day); d.setHours(h, m, 0, 0);
+        setEvent(day, id, { ts: d.getTime() });
+        render();
+      } else if (e.target.classList.contains('en')) {
+        setEvent(day, id, { n: e.target.value.trim() });
+        render();
+      }
+    };
+    p.onclick = e => {
+      const del = e.target.closest('[data-del]');
+      if (!del) return;
+      const li = del.closest('li[data-id]');
+      removeEvent(day, li.dataset.id);
+      li.remove(); buzz(); render();
+      if (!p.querySelector('li[data-id]')) closeSheet();
+    };
+  });
+}
+
+/* ---------- Partage ---------- */
+function shareText(day, since) {
+  let evs = eventsOf(day);
+  if (since) evs = evs.filter(e => e.ts > since);
+  const lines = groupsOf(evs).map(g => `${fmtSlot(g.start)} : ${g.items.map(e => ty(e.t).e + (e.n ? ` (${fmtNote(e)}) ` : '')).join('').trim()}`);
+  return [`${profile.name || 'Bébé'}, ${fmtLong(parseDay(day))}`].concat(lines).join('\n');
+}
+function markShared() { prefs.lastShare = Date.now(); savePrefs(); }
+async function copyText(t) {
+  try { if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(t); return true; } } catch (e) {}
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = t; ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  } catch (e) { return false; }
+}
+function openShare() {
+  const day = viewDay;
+  const canSince = day === todayKey() && prefs.lastShare && dayKey(new Date(prefs.lastShare)) === day && eventsOf(day).some(e => e.ts > prefs.lastShare);
+  let mode = 'all';
+  const text = () => shareText(day, mode === 'since' ? prefs.lastShare : 0);
+  const draw = () => {
+    const t = text();
+    return `<h3>${day === todayKey() ? 'Partager la journée' : 'Partager ce jour'}</h3>${canSince ? `<div class="seg" id="shMode"><button type="button" data-m="all" aria-pressed="${mode === 'all'}">Toute la journée</button><button type="button" data-m="since" aria-pressed="${mode === 'since'}">Depuis l’envoi de ${fmtTime(prefs.lastShare)}</button></div>` : ''}<pre class="preview">${esc(t)}</pre><div class="actions"><button class="primary wide" type="button" data-a="native">Partager…</button><a class="secondary" data-a="wa" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(t)}"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4h-1A2.5 2.5 0 0 1 4 13.5z"/><circle cx="8.5" cy="9.5" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="9.5" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="9.5" r="1" fill="currentColor" stroke="none"/></svg>WhatsApp</a><a class="secondary" data-a="sms" target="_blank" rel="noopener" href="sms:?&body=${encodeURIComponent(t)}"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M4 7l8 6 8-6"/></svg>SMS</a><button class="secondary wide" type="button" data-a="copy">Copier le texte</button></div><p class="hint" id="shMsg">Instagram ou Messenger : passez par « Partager… », ou copiez puis collez dans la conversation.</p>`;
+  };
+  openSheet(draw(), p => {
+    p.onclick = async e => {
+      const m = e.target.closest('[data-m]');
+      if (m) { mode = m.dataset.m; p.innerHTML = draw(); return; }
+      const a = e.target.closest('[data-a]');
+      if (!a) return;
+      const t = text();
+      const msg = () => $('#shMsg', p);
+      const fallback = 'Le partage direct n’est pas disponible ici : utilisez WhatsApp, SMS ou Copier.';
+      if (a.dataset.a === 'native') {
+        if (navigator.share) {
+          try { await navigator.share({ text: t }); markShared(); }
+          catch (err) { if (!err || err.name !== 'AbortError') { const el = msg(); if (el) el.textContent = fallback; } }
+        } else { const el = msg(); if (el) el.textContent = fallback; }
+        return;
+      }
+      if (a.dataset.a === 'copy') {
+        const ok = await copyText(t);
+        const el = msg();
+        if (el) el.textContent = ok ? 'Copié. Collez-le dans la conversation de votre choix.' : 'Copie bloquée ici : appuyez longuement sur le texte ci-dessus pour le sélectionner.';
+        if (ok) markShared();
+        return;
+      }
+      markShared();
+    };
+  });
+}
+function openOnboarding() {
+  openSheet(`<h3>Bienvenue</h3><p class="hint">Trois informations pour afficher son âge, calculer ses vaccins et choisir le conseil du jour.</p><label class="fld"><span>Prénom de bébé</span><input type="text" id="oName" autocomplete="off" placeholder="Prénom"></label><label class="fld"><span>Date de naissance</span><input type="date" id="oBirth" max="${todayKey()}"></label><div class="fld"><span>Sexe, facultatif</span><div class="seg" id="oSex"><button type="button" data-v="f" aria-pressed="false">Fille</button><button type="button" data-v="m" aria-pressed="false">Garçon</button></div></div><button class="primary" type="button" id="oGo">Commencer</button><button class="secondary" type="button" data-close>Plus tard</button>`, p => {
+    let sex = '';
+    p.onclick = e => {
+      const s = e.target.closest('#oSex [data-v]');
+      if (s) {
+        sex = s.getAttribute('aria-pressed') === 'true' ? '' : s.dataset.v;
+        p.querySelectorAll('#oSex [data-v]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === sex)));
+        return;
+      }
+      if (e.target.closest('#oGo')) {
+        profile.name = $('#oName', p).value.trim();
+        profile.birth = $('#oBirth', p).value || '';
+        profile.sex = sex;
+        saveProfile();
+        closeSheet();
+        render(true);
+      }
+    };
+  });
+  onSheetClose = () => { prefs.onboarded = 1; savePrefs(); };
+}
+function openClear() {
+  openSheet(`<h3>Effacer les données de cet appareil ?</h3><p>${db ? 'Le journal partagé reste en ligne : il réapparaîtra à la prochaine synchronisation.' : 'Le journal, les réglages et les vaccins cochés seront définitivement perdus.'}</p><button class="primary" type="button" id="cGo">Effacer</button><button class="secondary" type="button" data-close>Annuler</button>`, p => {
+    p.onclick = e => {
+      if (!e.target.closest('#cGo')) return;
+      ['bb.profile', 'bb.days', 'bb.prefs', 'bb.profilePending'].forEach(store.del);
+      profile = blankProfile(); days = {}; profilePending = false;
+      prefs = { theme: 'auto', lastShare: 0, seenFever: {}, onboarded: 0 };
+      closeSheet(); applyTheme(); tab = 'jour'; viewDay = todayKey(); hideToast(); render(true);
+      if (!db) openOnboarding();
+    };
+  });
+}
+
+/* ---------- Écouteurs ---------- */
+$('#grid').addEventListener('click', e => {
+  const b = e.target.closest('.qb');
+  if (!b) return;
+  if (b.id === 'moreBtn') { openMore(); return; }
+  logType(b.dataset.k);
+});
+$('#journal').addEventListener('click', e => {
+  const b = e.target.closest('[data-ids]');
+  if (b) openGroup(viewDay, b.dataset.ids.split(','));
+});
+$('#prevDay').addEventListener('click', () => { viewDay = shiftDay(viewDay, -1); ensureSubs(); renderJournal(); });
+$('#nextDay').addEventListener('click', () => { if (viewDay < todayKey()) { viewDay = shiftDay(viewDay, 1); ensureSubs(); renderJournal(); } });
+$('#shareBtn').addEventListener('click', openShare);
+$('#themeBtn').addEventListener('click', () => {
+  prefs.theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  savePrefs(); applyTheme();
+  if (tab === 'reglages') render(true);
+});
+function switchTab(t) {
+  tab = t; hideToast(); $('#scroller').scrollTop = 0; render(true);
+}
+document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+document.addEventListener('click', e => {
+  const fv = e.target.closest('[data-fever]');
+  if (fv) { prefs.seenFever[fv.dataset.fever] = 1; savePrefs(); renderJour(); return; }
+  const g = e.target.closest('[data-go]');
+  if (g && !sheet.contains(g)) switchTab(g.dataset.go);
+});
+const santeEl = $('#tab-sante');
+santeEl.addEventListener('click', e => {
+  const d = e.target.closest('[data-done]');
+  if (d) {
+    const id = d.dataset.done;
+    if (!profile.vacc) profile.vacc = {};
+    profile.vacc[id] = Date.now();
+    saveProfile();
+    const g = SCHEDULE.find(x => x.id === id);
+    if (g) {
+      if (g.id === 'j8') addEvent('pediatre', 'examen du 8e jour');
+      else addEvent('vaccin', g.id === 'vrs' ? 'protection bronchiolite' : `vaccins des ${g.title}`);
+    }
+    buzz(); render();
+    return;
+  }
+  const u = e.target.closest('[data-undone]');
+  if (u) { delete profile.vacc[u.dataset.undone]; saveProfile(); render(); }
+  const go = e.target.closest('[data-go]');
+  if (go) switchTab(go.dataset.go);
+});
+const st = $('#tab-reglages');
+let typeTimer = null;
+st.addEventListener('input', e => {
+  const t = e.target;
+  if (t.id === 'sName') {
+    profile.name = t.value.trim(); renderHeader();
+    clearTimeout(typeTimer); typeTimer = setTimeout(saveProfile, 400);
+  } else if (t.classList.contains('bL')) {
+    const k = t.dataset.k;
+    if (!profile.buttons[k]) profile.buttons[k] = {};
+    profile.buttons[k].l = t.value.trim();
+    renderGrid();
+    clearTimeout(typeTimer); typeTimer = setTimeout(saveProfile, 400);
+  }
+});
+st.addEventListener('change', e => {
+  const t = e.target;
+  if (t.id === 'sBirth') { profile.birth = t.value || ''; saveProfile(); renderHeader(); renderTabs(); }
+  else if (t.classList.contains('bE')) {
+    const k = t.dataset.k;
+    const v = firstGrapheme(t.value.trim()) || CATALOG[k].e;
+    t.value = v;
+    if (!profile.buttons[k]) profile.buttons[k] = {};
+    profile.buttons[k].e = v;
+    saveProfile(); renderGrid();
+  }
+});
+st.addEventListener('click', e => {
+  const sx = e.target.closest('#sSex [data-v]');
+  if (sx) {
+    profile.sex = sx.dataset.v; saveProfile();
+    st.querySelectorAll('#sSex [data-v]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === profile.sex)));
+    return;
+  }
+  const th = e.target.closest('#sTheme [data-v]');
+  if (th) {
+    prefs.theme = th.dataset.v; savePrefs(); applyTheme();
+    st.querySelectorAll('#sTheme [data-v]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === prefs.theme)));
+    return;
+  }
+  if (e.target.closest('#sResetBtns')) { profile.buttons = {}; saveProfile(); render(true); return; }
+  if (e.target.closest('#sClear')) openClear();
+});
+
+function tick() {
+  const k = todayKey();
+  if (k !== currentToday) {
+    if (viewDay === currentToday) viewDay = k;
+    currentToday = k;
+    ensureSubs();
+  }
+  if (prefs.theme === 'auto') applyTheme();
+  renderHeader();
+  if (tab === 'jour') renderJour();
+}
+
+/* ---------- Démarrage ---------- */
+applyTheme();
+render(true);
+setInterval(tick, 30000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
+const dbReady = initDb();
+Promise.race([dbReady, new Promise(r => setTimeout(r, 1500))]).then(() => {
+  if (!profile.birth && !prefs.onboarded && sheet.hidden) openOnboarding();
+});
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
+</script>
+</body>
+</html>
