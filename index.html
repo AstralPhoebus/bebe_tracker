@@ -288,6 +288,39 @@ section > .sec:first-child { margin-top: 4px; }
 .btnlist .bE { text-align: center; font-size: 24px; padding: 6px; }
 #syncText { margin: 4px 0 0; font-size: 15px; }
 
+/* Plus, totaux, calendrier */
+.morebar {
+  appearance: none; width: 100%; margin-top: 8px; border: 1.5px dashed var(--line); background: transparent;
+  border-radius: 14px; padding: 9px 12px; font-size: 14px; font-weight: 600; color: var(--muted);
+}
+.calbtn {
+  appearance: none; border: 1px solid var(--line); background: transparent; color: var(--text);
+  width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; flex: none; margin-left: 2px;
+}
+.calbtn svg { width: 21px; height: 21px; }
+#dayTitle { cursor: pointer; }
+.totals { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 2px 0 6px; color: var(--muted); font-weight: 700; font-variant-numeric: tabular-nums; font-size: 15px; }
+.totals .emo { font-size: 17px; margin-right: 4px; vertical-align: -2px; }
+.seg.big button small { display: block; font-size: 12.5px; font-weight: 600; margin-top: 3px; }
+.seg.big button.sug { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+.calhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.calhead h3 { margin: 0; }
+.calhead h3::first-letter { text-transform: uppercase; }
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; text-align: center; }
+.cal .wd { font-size: 12.5px; color: var(--muted); font-weight: 700; padding: 4px 0; }
+.cd {
+  appearance: none; border: 0; background: transparent; color: var(--text); aspect-ratio: 1; border-radius: 9px;
+  font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; position: relative; padding: 0;
+}
+.cd.has::after { content: ""; position: absolute; left: 50%; bottom: 5px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: var(--accent); }
+.cd.today { background: var(--accent); color: var(--on-accent); }
+.cd.today.has::after { background: var(--on-accent); }
+.cd.sel:not(.today) { box-shadow: inset 0 0 0 2px var(--accent); }
+.cd:disabled { color: var(--muted); opacity: .3; cursor: default; }
+.cal-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; font-size: 13px; color: var(--muted); }
+.cal-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: var(--accent); vertical-align: -1px; margin-right: 6px; }
+.cal-legend i.dot { width: 6px; height: 6px; border-radius: 50%; vertical-align: 1px; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
@@ -316,10 +349,12 @@ section > .sec:first-child { margin-top: 4px; }
     <div id="last" class="last" aria-live="polite"></div>
     <div class="dayhead">
       <button class="nav" id="prevDay" type="button" aria-label="Jour précédent">‹</button>
-      <h2 id="dayTitle">Aujourd’hui</h2>
+      <h2 id="dayTitle" role="button" tabindex="0" title="Ouvrir le calendrier">Aujourd’hui</h2>
       <button class="nav" id="nextDay" type="button" aria-label="Jour suivant">›</button>
+      <button class="calbtn" id="calBtn" type="button" aria-label="Ouvrir le calendrier"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></button>
       <button class="share" id="shareBtn" type="button">Partager</button>
     </div>
+    <div class="totals" id="totals"></div>
     <ol class="journal" id="journal"></ol>
     <aside class="tip" id="tip"></aside>
   </section>
@@ -332,6 +367,7 @@ section > .sec:first-child { margin-top: 4px; }
   <div class="wrap">
     <div class="toast" id="toast" role="status" hidden></div>
     <div class="grid" id="grid"></div>
+    <button class="morebar" type="button" id="moreBtn">+ Autre : biberon, bain, température, pédiatre…</button>
   </div>
 </div>
 
@@ -390,28 +426,30 @@ function firstGrapheme(s) {
 
 /* ---------- Catalogue ---------- */
 const CATALOG = {
-  biberon:  { e: '🍼', l: 'Biberon', feed: 1 },
-  caca:     { e: '💩', l: 'Caca' },
-  pipi:     { e: '💧', l: 'Pipi' },
-  toilette: { e: '🚿', l: 'Toilette' },
-  dodo:     { e: '😴', l: 'Dodo' },
-  pleurs:   { e: '😭', l: 'Pleurs' },
-  crise:    { e: '🧨', l: 'Prout' },
-  vitamine: { e: '💊', l: 'Vitamine' },
-  jeu:      { e: '🛹', l: 'Jeu' },
-  tetee:    { e: '🤱', l: 'Tétée', feed: 1, opts: ['gauche', 'droit'] },
-  eveil:    { e: '👀', l: 'Éveil' },
-  bain:     { e: '🛁', l: 'Bain' },
-  soin:     { e: '🧴', l: 'Soin' },
-  regurg:   { e: '🤮', l: 'Régurgitation' },
-  temp:     { e: '🌡️', l: 'Température', note: 'Ex. 37,8' },
-  pediatre: { e: '🩺', l: 'Pédiatre', note: 'Motif, remarques' },
-  pesee:    { e: '⚖️', l: 'Pesée PMI', note: 'Ex. 4,2' },
-  vaccin:   { e: '💉', l: 'Vaccin', note: 'Lesquels ?' },
-  premiere: { e: '🎉', l: 'Première fois', note: 'Ex. premier sourire' }
+  tetee:      { e: '🤱', l: 'Tétée', feed: 1, opts: ['gauche', 'droit'] },
+  vitamine:   { e: '🥝', l: 'Vitamine' },
+  caca:       { e: '💩', l: 'Caca' },
+  pipi:       { e: '💧', l: 'Pipi' },
+  toilette:   { e: '🧴', l: 'Toilette' },
+  dodo:       { e: '😴', l: 'Dodo' },
+  pleurs:     { e: '😭', l: 'Pleurs' },
+  crise:      { e: '🧨', l: 'Prout' },
+  medicament: { e: '💊', l: 'Médicament', note: 'Nom, et dose si besoin', field: 'Nom du médicament', recent: 1 },
+  sortie:     { e: '🏞️', l: 'Sortie' },
+  biberon:    { e: '🍼', l: 'Biberon', feed: 1 },
+  jeu:        { e: '🛹', l: 'Jeu' },
+  eveil:      { e: '👀', l: 'Éveil' },
+  bain:       { e: '🛁', l: 'Bain' },
+  soin:       { e: '🩹', l: 'Soin' },
+  regurg:     { e: '🤮', l: 'Régurgitation' },
+  temp:       { e: '🌡️', l: 'Température', note: 'Ex. 37,8' },
+  pediatre:   { e: '🩺', l: 'Pédiatre', note: 'Motif, remarques' },
+  pesee:      { e: '⚖️', l: 'Pesée PMI', note: 'Ex. 4,2' },
+  vaccin:     { e: '💉', l: 'Vaccin', note: 'Lesquels ?' },
+  premiere:   { e: '🎉', l: 'Première fois', note: 'Ex. premier sourire' }
 };
-const QUICK = ['biberon', 'caca', 'pipi', 'toilette', 'dodo', 'pleurs', 'crise', 'vitamine', 'jeu'];
-const EXTRAS = ['tetee', 'eveil', 'bain', 'soin', 'regurg', 'temp'];
+const QUICK = ['tetee', 'vitamine', 'caca', 'pipi', 'toilette', 'dodo', 'pleurs', 'crise', 'medicament', 'sortie'];
+const EXTRAS = ['biberon', 'jeu', 'eveil', 'bain', 'soin', 'regurg', 'temp'];
 const EVENTS = ['pediatre', 'pesee', 'vaccin', 'premiere'];
 
 /* Calendrier vaccinal 2026, bébés nés depuis le 1er janvier 2025 */
@@ -486,6 +524,38 @@ const ty = k => {
   const o = (profile.buttons || {})[k] || {};
   return { e: o.e || base.e, l: o.l || base.l };
 };
+
+/* ---------- Migration : boutons renommés -> vrais types ---------- */
+const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+function migrate() {
+  if (prefs.mig2) return;
+  const byLabel = {};
+  for (const [k, c] of Object.entries(CATALOG)) byLabel[norm(c.l)] = k;
+  const btns = profile.buttons || {};
+  const map = {};
+  for (const [k, o] of Object.entries(btns)) {
+    const target = o && o.l ? byLabel[norm(o.l)] : null;
+    if (target && target !== k) map[k] = target;
+  }
+  let touched = false;
+  if (Object.keys(map).length) {
+    for (const evs of Object.values(days)) for (const e of Object.values(evs || {})) {
+      if (e && map[e.t]) { e.t = map[e.t]; e.p = 1; touched = true; }
+    }
+  }
+  const clean = {};
+  for (const [k, o] of Object.entries(btns)) {
+    if (map[k] || !CATALOG[k] || !o) continue;
+    const keep = {};
+    if (o.e && o.e !== CATALOG[k].e) keep.e = o.e;
+    if (o.l && norm(o.l) !== norm(CATALOG[k].l)) keep.l = o.l;
+    if (keep.e || keep.l) clean[k] = keep;
+  }
+  if (touched) saveDays();
+  if (JSON.stringify(clean) !== JSON.stringify(btns)) { profile.buttons = clean; saveProfile(); }
+  prefs.mig2 = 1;
+  savePrefs();
+}
 
 /* ---------- État d'interface ---------- */
 let tab = 'jour';
@@ -733,7 +803,7 @@ function renderGrid() {
   $('#grid').innerHTML = QUICK.map(k => {
     const c = ty(k);
     return `<button class="qb" type="button" data-k="${k}" aria-label="Noter : ${esc(c.l)}"><span class="emo">${esc(c.e)}</span><span class="ql">${esc(c.l)}</span></button>`;
-  }).join('') + '<button class="qb more" type="button" id="moreBtn" aria-label="Noter autre chose"><span class="emo plus">+</span><span class="ql">Plus</span></button>';
+  }).join('');
 }
 function renderJour() {
   const out = [];
@@ -785,7 +855,9 @@ function renderJournal() {
   const t = todayKey();
   $('#dayTitle').textContent = viewDay === t ? 'Aujourd’hui' : viewDay === shiftDay(t, -1) ? 'Hier' : fmtShort(parseDay(viewDay));
   $('#nextDay').disabled = viewDay >= t;
-  const gs = groupsOf(eventsOf(viewDay));
+  const dayEvs = eventsOf(viewDay);
+  renderTotals(dayEvs);
+  const gs = groupsOf(dayEvs);
   const j = $('#journal');
   if (!gs.length) {
     j.innerHTML = `<li class="empty">${viewDay === t ? 'Rien de noté aujourd’hui pour l’instant.' : 'Rien de noté ce jour-là.'}</li>`;
@@ -799,6 +871,15 @@ function renderJournal() {
     const emos = g.items.map(e => `<span class="emo" title="${esc(ty(e.t).l)}">${esc(ty(e.t).e)}</span>${e.n ? `<span class="note">${esc(fmtNote(e))}</span>` : ''}`).join('');
     return `<li><button class="jl${fresh}" type="button" data-ids="${esc(g.items.map(e => e.id).join(','))}" aria-label="${fmtSlot(g.start)} : ${esc(labels)}. Modifier"><time>${fmtSlot(g.start)}</time><span class="emos">${emos}</span></button></li>`;
   }).join('');
+}
+function renderTotals(evs) {
+  const counts = {};
+  evs.forEach(e => { counts[e.t] = (counts[e.t] || 0) + 1; });
+  const order = QUICK.concat(EXTRAS, EVENTS).filter(k => counts[k]);
+  const el = $('#totals');
+  el.hidden = !order.length;
+  el.setAttribute('aria-label', 'Total du jour : ' + order.map(k => `${counts[k]} ${ty(k).l}`).join(', '));
+  el.innerHTML = order.map(k => `<span title="${esc(ty(k).l)}"><span class="emo">${esc(ty(k).e)}</span>${counts[k]}</span>`).join('');
 }
 function renderTip() {
   const a = ageDays();
@@ -935,17 +1016,38 @@ function openMore() {
     p.onclick = e => { const b = e.target.closest('[data-k]'); if (b) logType(b.dataset.k); };
   });
 }
+function recentNotes(t, max) {
+  const all = [];
+  for (const evs of Object.values(days)) for (const e of Object.values(evs || {})) if (e && !e.x && e.t === t && e.n) all.push(e);
+  all.sort((a, b) => b.ts - a.ts);
+  const out = [];
+  for (const e of all) {
+    const n = String(e.n).trim();
+    if (n && !out.some(x => norm(x) === norm(n))) out.push(n);
+    if (out.length >= max) break;
+  }
+  return out;
+}
 function openNote(k) {
   const c = ty(k), cat = CATALOG[k];
   if (cat.opts) {
-    openSheet(`<h3><span class="emo">${esc(c.e)}</span>${esc(c.l)}</h3><p class="hint">Quel sein ?</p><div class="seg big">${cat.opts.map(o => `<button type="button" data-o="${o}">${o[0].toUpperCase() + o.slice(1)}</button>`).join('')}</div><button class="secondary" type="button" data-o="">Sans préciser</button>`, p => {
+    const ev = recent();
+    let lastT = null;
+    for (let i = ev.length - 1; i >= 0; i--) if (ev[i].t === k && ev[i].n) { lastT = ev[i]; break; }
+    const side = lastT ? String(lastT.n).toLowerCase() : '';
+    const sug = side === 'gauche' ? 'droit' : side === 'droit' ? 'gauche' : '';
+    const hint = sug ? `Dernière tétée à ${fmtTime(lastT.ts)}, sein ${side}.` : 'Quel sein ?';
+    openSheet(`<h3><span class="emo">${esc(c.e)}</span>${esc(c.l)}</h3><p class="hint">${esc(hint)}</p><div class="seg big">${cat.opts.map(o => `<button type="button" data-o="${o}"${o === sug ? ' class="sug"' : ''}>Sein ${o}${o === sug ? '<small>à son tour</small>' : ''}</button>`).join('')}</div><button class="secondary" type="button" data-o="">Sans préciser</button>`, p => {
       p.onclick = e => { const b = e.target.closest('[data-o]'); if (!b) return; closeSheet(); afterLog(addEvent(k, b.dataset.o)); };
     });
     return;
   }
   const decimal = k === 'temp' || k === 'pesee';
   const unit = k === 'temp' ? 'en °C, facultatif' : k === 'pesee' ? 'poids en kg, facultatif' : 'facultatif';
-  openSheet(`<h3><span class="emo">${esc(c.e)}</span>${esc(c.l)}</h3><label class="fld"><span>Précision, ${unit}</span><input type="text" id="noteIn" placeholder="${esc(cat.note)}" autocomplete="off" ${decimal ? 'inputmode="decimal"' : ''} autofocus></label><p class="warn" id="noteWarn" hidden></p><button class="primary" type="button" id="noteOk">Noter à ${fmtTime(Date.now())}</button><button class="secondary" type="button" data-close>Annuler</button>`, p => {
+  const label = cat.field || `Précision, ${unit}`;
+  const rec = cat.recent ? recentNotes(k, 4) : [];
+  const recHtml = rec.length ? `<p class="hint">Déjà donnés, un toucher suffit :</p><div class="chips" style="margin-top:8px">${rec.map(r => `<button class="chip" type="button" data-rn="${esc(r)}">${esc(r)}</button>`).join('')}</div>` : '';
+  openSheet(`<h3><span class="emo">${esc(c.e)}</span>${esc(c.l)}</h3>${recHtml}<label class="fld"><span>${esc(label)}</span><input type="text" id="noteIn" placeholder="${esc(cat.note)}" autocomplete="off" ${decimal ? 'inputmode="decimal"' : ''} ${rec.length ? '' : 'autofocus'}></label><p class="warn" id="noteWarn" hidden></p><button class="primary" type="button" id="noteOk">Noter à ${fmtTime(Date.now())}</button><button class="secondary" type="button" data-close>Annuler</button>`, p => {
     const inp = $('#noteIn', p), warn = $('#noteWarn', p);
     p.oninput = () => {
       if (k !== 'temp') return;
@@ -954,9 +1056,13 @@ function openNote(k) {
       warn.hidden = !show;
       if (show) warn.textContent = FEVER_MSG;
     };
-    const go = () => { const n = inp.value.trim(); closeSheet(); afterLog(addEvent(k, n)); };
-    p.onclick = e => { if (e.target.closest('#noteOk')) go(); };
-    inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
+    const go = n => { closeSheet(); afterLog(addEvent(k, n)); };
+    p.onclick = e => {
+      const r = e.target.closest('[data-rn]');
+      if (r) { go(r.dataset.rn); return; }
+      if (e.target.closest('#noteOk')) go(inp.value.trim());
+    };
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); go(inp.value.trim()); } });
   });
 }
 function openGroup(day, ids) {
@@ -988,6 +1094,50 @@ function openGroup(day, ids) {
       removeEvent(day, li.dataset.id);
       li.remove(); buzz(); render();
       if (!p.querySelector('li[data-id]')) closeSheet();
+    };
+  });
+}
+
+/* ---------- Calendrier ---------- */
+let calMonth = null;
+function goDay(k) {
+  viewDay = k;
+  ensureSubs();
+  $('#scroller').scrollTop = 0;
+  renderJour();
+}
+function drawCal() {
+  const t = todayKey(), now = new Date();
+  const y = calMonth.getFullYear(), m = calMonth.getMonth();
+  const offset = (new Date(y, m, 1).getDay() + 6) % 7;
+  const n = new Date(y, m + 1, 0).getDate();
+  const birth = profile.birth || '';
+  const bd = birth ? parseDay(birth) : null;
+  const atCurrent = y === now.getFullYear() && m === now.getMonth();
+  const atBirth = bd && y === bd.getFullYear() && m === bd.getMonth();
+  const title = new Date(y, m, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  let cells = ['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(w => `<span class="wd" aria-hidden="true">${w}</span>`).join('');
+  for (let i = 0; i < offset; i++) cells += '<span></span>';
+  for (let d = 1; d <= n; d++) {
+    const k = `${y}-${pad(m + 1)}-${pad(d)}`;
+    const off = k > t || (birth && k < birth);
+    const count = eventsOf(k).length;
+    const cls = ['cd', k === t ? 'today' : '', k === viewDay ? 'sel' : '', count ? 'has' : ''].filter(Boolean).join(' ');
+    const label = fmtLong(parseDay(k)) + (k === t ? ', aujourd’hui' : '') + (count ? `, ${count} moment${count > 1 ? 's' : ''} noté${count > 1 ? 's' : ''}` : '');
+    cells += `<button type="button" class="${cls}" data-day="${k}"${off ? ' disabled' : ''} aria-label="${esc(label)}"${k === t ? ' aria-current="date"' : ''}>${d}</button>`;
+  }
+  return `<div class="calhead"><button class="nav" type="button" data-cm="-1"${atBirth ? ' disabled' : ''} aria-label="Mois précédent">‹</button><h3>${esc(title)}</h3><button class="nav" type="button" data-cm="1"${atCurrent ? ' disabled' : ''} aria-label="Mois suivant">›</button></div><div class="cal">${cells}</div><div class="cal-legend"><span><i></i>Aujourd’hui</span><span><i class="dot"></i>Journée remplie</span></div><button class="secondary" type="button" data-today>Revenir à aujourd’hui</button>`;
+}
+function openCalendar() {
+  const vd = parseDay(viewDay);
+  calMonth = new Date(vd.getFullYear(), vd.getMonth(), 1);
+  openSheet(drawCal(), p => {
+    p.onclick = e => {
+      const nav = e.target.closest('[data-cm]');
+      if (nav && !nav.disabled) { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + Number(nav.dataset.cm), 1); p.innerHTML = drawCal(); return; }
+      const d = e.target.closest('[data-day]');
+      if (d && !d.disabled) { closeSheet(); goDay(d.dataset.day); return; }
+      if (e.target.closest('[data-today]')) { closeSheet(); goDay(todayKey()); }
     };
   });
 }
@@ -1087,9 +1237,12 @@ function openClear() {
 $('#grid').addEventListener('click', e => {
   const b = e.target.closest('.qb');
   if (!b) return;
-  if (b.id === 'moreBtn') { openMore(); return; }
   logType(b.dataset.k);
 });
+$('#moreBtn').addEventListener('click', openMore);
+$('#calBtn').addEventListener('click', openCalendar);
+$('#dayTitle').addEventListener('click', openCalendar);
+$('#dayTitle').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCalendar(); } });
 $('#journal').addEventListener('click', e => {
   const b = e.target.closest('[data-ids]');
   if (b) openGroup(viewDay, b.dataset.ids.split(','));
@@ -1190,6 +1343,7 @@ function tick() {
 }
 
 /* ---------- Démarrage ---------- */
+migrate();
 applyTheme();
 render(true);
 setInterval(tick, 30000);
