@@ -1,5 +1,5 @@
 // Journal de bébé : fonctionnement hors ligne
-const CACHE = 'journal-bebe-v2';
+const CACHE = 'journal-bebe-v4';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 
 self.addEventListener('install', e => {
@@ -22,7 +22,7 @@ self.addEventListener('fetch', e => {
   // Page : réseau d'abord (pour récupérer les mises à jour), cache si hors ligne
   if (req.mode === 'navigate') {
     e.respondWith(
-      fetch(req)
+      fetch(req, { cache: 'no-store' })
         .then(res => { const copy = res.clone(); caches.open(CACHE).then(c => c.put('./index.html', copy)); return res; })
         .catch(() => caches.match('./index.html'))
     );

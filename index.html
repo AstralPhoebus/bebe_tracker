@@ -321,6 +321,28 @@ section > .sec:first-child { margin-top: 4px; }
 .cal-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: var(--accent); vertical-align: -1px; margin-right: 6px; }
 .cal-legend i.dot { width: 6px; height: 6px; border-radius: 50%; vertical-align: 1px; }
 
+/* Fermeture du message, photos */
+.toast { padding-right: 46px; }
+.tclose {
+  appearance: none; position: absolute; top: 6px; right: 6px; width: 36px; height: 36px; border: 0;
+  background: transparent; color: var(--muted); font-size: 16px; border-radius: 50%;
+}
+.panel .qb .ql { white-space: normal; text-align: center; line-height: 1.2; }
+.photo-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.vh { position: fixed; left: -9999px; top: 0; width: 1px; height: 1px; opacity: 0; }
+.pbtn {
+  appearance: none; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1.5px solid var(--line);
+  border-radius: 14px; padding: 12px 8px; font-weight: 600; font-size: 15px; cursor: pointer; text-align: center; background: var(--bg);
+}
+.pbtn .emo { font-size: 20px; }
+.photo-prev { display: flex; align-items: flex-end; gap: 10px; margin-top: 12px; }
+.photo-prev img { display: block; max-width: 70%; max-height: 190px; border-radius: 14px; object-fit: cover; }
+.photo-big { display: block; max-width: 100%; max-height: 260px; border-radius: 14px; object-fit: cover; margin-top: 10px; }
+.edit-photo .chips { margin-top: 8px; }
+.jl .thumb { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; display: block; background: var(--surface-2); }
+.ph-missing { font-size: 18px; opacity: .6; }
+:root[data-theme="dark"] .thumb, :root[data-theme="dark"] .photo-big, :root[data-theme="dark"] .photo-prev img { filter: sepia(.35) brightness(.8); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
@@ -370,6 +392,9 @@ section > .sec:first-child { margin-top: 4px; }
     <button class="morebar" type="button" id="moreBtn">+ Autre : biberon, bain, température, pédiatre…</button>
   </div>
 </div>
+
+<input type="file" id="camInput" class="vh" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
+<input type="file" id="galInput" class="vh" accept="image/*" tabindex="-1" aria-hidden="true">
 
 <div class="sheet" id="sheet" hidden>
   <div class="panel" id="panel" role="dialog" aria-modal="true"></div>
@@ -446,11 +471,12 @@ const CATALOG = {
   pediatre:   { e: '🩺', l: 'Pédiatre', note: 'Motif, remarques' },
   pesee:      { e: '⚖️', l: 'Pesée PMI', note: 'Ex. 4,2' },
   vaccin:     { e: '💉', l: 'Vaccin', note: 'Lesquels ?' },
-  premiere:   { e: '🎉', l: 'Première fois', note: 'Ex. premier sourire' }
+  premiere:   { e: '🎉', l: 'Première fois', note: 'Ex. premier sourire', photo: 1 },
+  marquant:   { e: '🤩', l: 'Événement marquant', note: 'Ex. rencontre avec ses grands-parents', photo: 1 }
 };
 const QUICK = ['tetee', 'vitamine', 'caca', 'pipi', 'toilette', 'dodo', 'pleurs', 'crise', 'medicament', 'sortie'];
 const EXTRAS = ['biberon', 'jeu', 'eveil', 'bain', 'soin', 'regurg', 'temp'];
-const EVENTS = ['pediatre', 'pesee', 'vaccin', 'premiere'];
+const EVENTS = ['pediatre', 'pesee', 'vaccin', 'premiere', 'marquant'];
 
 /* Calendrier vaccinal 2026, bébés nés depuis le 1er janvier 2025 */
 const SCHEDULE = [
@@ -586,11 +612,11 @@ function fmtNote(e) {
   if (num && e.t === 'pesee') return n + ' kg';
   return n;
 }
-function addEvent(t, n = '', ts = Date.now()) {
+function addEvent(t, n = '', ts = Date.now(), ph = '') {
   const day = dayKey(new Date(ts));
   const id = uid();
   if (!days[day]) days[day] = {};
-  days[day][id] = { t, ts, n, x: 0, p: 1 };
+  days[day][id] = { t, ts, n, x: 0, p: 1, ph };
   saveDays();
   pushEvent(day, id);
   return { day, id };
@@ -604,7 +630,7 @@ function setEvent(day, id, patch) {
     pushEvent(day, id);
     const nid = uid();
     if (!days[nd]) days[nd] = {};
-    days[nd][nid] = { t: ev.t, ts: patch.ts, n: patch.n != null ? patch.n : (ev.n || ''), x: 0, p: 1 };
+    days[nd][nid] = { t: ev.t, ts: patch.ts, n: patch.n != null ? patch.n : (ev.n || ''), x: 0, p: 1, ph: ev.ph || '' };
     saveDays();
     pushEvent(nd, nid);
     return { day: nd, id: nid };
@@ -614,7 +640,116 @@ function setEvent(day, id, patch) {
   pushEvent(day, id);
   return { day, id };
 }
-const removeEvent = (day, id) => setEvent(day, id, { x: 1 });
+function removeEvent(day, id) {
+  const ev = days[day] && days[day][id];
+  if (ev && ev.ph) dropPhoto(ev.ph);
+  return setEvent(day, id, { x: 1 });
+}
+
+/* ---------- Photos (stockées sur le téléphone) ---------- */
+const photoDB = (() => {
+  let opening = null;
+  const open = () => opening || (opening = new Promise((res, rej) => {
+    if (!('indexedDB' in window)) { rej(new Error('indexedDB indisponible')); return; }
+    const r = indexedDB.open('bb-photos', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('photos');
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => { opening = null; rej(r.error); };
+  }));
+  const tx = (mode, fn) => open().then(db => new Promise((res, rej) => {
+    const t = db.transaction('photos', mode);
+    const req = fn(t.objectStore('photos'));
+    t.oncomplete = () => res(req ? req.result : undefined);
+    t.onerror = () => rej(t.error);
+    t.onabort = () => rej(t.error);
+  }));
+  return {
+    put: (id, blob) => tx('readwrite', st => st.put(blob, id)),
+    get: id => tx('readonly', st => st.get(id)),
+    del: id => tx('readwrite', st => st.delete(id)),
+    clear: () => tx('readwrite', st => st.clear())
+  };
+})();
+const phURLs = new Map();
+async function photoURL(id) {
+  if (phURLs.has(id)) return phURLs.get(id);
+  try {
+    const b = await photoDB.get(id);
+    if (!b) return null;
+    const u = URL.createObjectURL(b);
+    phURLs.set(id, u);
+    return u;
+  } catch (e) { return null; }
+}
+function hydratePhotos(root) {
+  root.querySelectorAll('img[data-ph]').forEach(async img => {
+    if (img.getAttribute('src')) return;
+    const u = await photoURL(img.dataset.ph);
+    if (u) { img.src = u; return; }
+    const m = document.createElement('span');
+    m.className = 'ph-missing emo';
+    m.textContent = '📷';
+    m.title = 'Photo absente de ce téléphone';
+    img.replaceWith(m);
+  });
+}
+function dropPhoto(id) {
+  photoDB.del(id).catch(() => {});
+  const u = phURLs.get(id);
+  if (u) { URL.revokeObjectURL(u); phURLs.delete(id); }
+}
+function askPersist() { try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {} }
+function compressImage(file, max = 1600, q = 0.82) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    const timer = setTimeout(() => { img.onload = img.onerror = null; URL.revokeObjectURL(url); reject(new Error('délai')); }, 15000);
+    img.onload = () => {
+      clearTimeout(timer);
+      try {
+        const r = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+        const w = Math.max(1, Math.round(img.naturalWidth * r)), h = Math.max(1, Math.round(img.naturalHeight * r));
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        c.toBlob(b => (b ? resolve(b) : reject(new Error('compression'))), 'image/jpeg', q);
+      } catch (e) { URL.revokeObjectURL(url); reject(e); }
+    };
+    img.onerror = () => { clearTimeout(timer); URL.revokeObjectURL(url); reject(new Error('lecture')); };
+    img.src = url;
+  });
+}
+async function preparePhoto(file) {
+  try { return await compressImage(file); }
+  catch (e) {
+    if (file && (!file.type || file.type.startsWith('image/')) && file.size < 12e6) return file;
+    throw e;
+  }
+}
+const embedded = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
+const pickerHtml = () => `<div class="photo-pick"><button type="button" class="pbtn" data-pick="cam"><span class="emo">📷</span>Prendre une photo</button><button type="button" class="pbtn" data-pick="gal"><span class="emo">🖼️</span>Galerie</button></div>${embedded ? '<p class="hint">Dans l’aperçu Claude, l’appareil photo peut être bloqué par l’application. Il fonctionne dans l’app installée sur le téléphone.</p>' : ''}`;
+let pickResolve = null;
+function pickPhoto(kind) {
+  const inp = $(kind === 'cam' ? '#camInput' : '#galInput');
+  inp.value = '';
+  return new Promise(res => { pickResolve = res; inp.click(); });
+}
+function canShareFiles() {
+  try { return !!(navigator.canShare && navigator.canShare({ files: [new File([new Blob(['x'], { type: 'image/jpeg' })], 'p.jpg', { type: 'image/jpeg' })] })); }
+  catch (e) { return false; }
+}
+async function sharePhoto(ev) {
+  try {
+    const b = await photoDB.get(ev.ph);
+    if (!b) return false;
+    const base = norm(profile.name || 'bebe').replace(/[^a-z0-9]+/g, '-') || 'bebe';
+    const file = new File([b], `${base}-${dayKey(new Date(ev.ts))}.jpg`, { type: 'image/jpeg' });
+    const c = ty(ev.t);
+    await navigator.share({ files: [file], text: `${c.e} ${ev.n ? fmtNote(ev) : c.l}` });
+    return true;
+  } catch (e) { return false; }
+}
 
 /* ---------- Synchronisation (journal partagé) ---------- */
 let db = null, readOnly = false;
@@ -641,7 +776,7 @@ function pushEvent(day, id) {
   pushTimers[key] = setTimeout(() => enqueue('d:' + day, async () => {
     const ev = days[day] && days[day][id];
     if (!ev || !db) return;
-    const sent = { t: ev.t, ts: ev.ts, n: ev.n || '', x: ev.x ? 1 : 0 };
+    const sent = { t: ev.t, ts: ev.ts, n: ev.n || '', x: ev.x ? 1 : 0, ph: ev.ph || '' };
     const body = { events: { [id]: sent } };
     const ref = db.doc('days/' + day);
     try {
@@ -654,7 +789,7 @@ function pushEvent(day, id) {
       } else throw e;
     }
     const cur = days[day] && days[day][id];
-    if (cur && cur.ts === sent.ts && (cur.x ? 1 : 0) === sent.x && (cur.n || '') === sent.n) { cur.p = 0; saveDays(); }
+    if (cur && cur.ts === sent.ts && (cur.x ? 1 : 0) === sent.x && (cur.n || '') === sent.n && (cur.ph || '') === sent.ph) { cur.p = 0; saveDays(); }
   }), 350);
 }
 function saveProfile() {
@@ -692,7 +827,7 @@ function subscribeDay(day) {
       const remote = (data.events && typeof data.events === 'object') ? data.events : {};
       const merged = {};
       for (const [id, e] of Object.entries(remote)) {
-        if (e && typeof e === 'object') merged[id] = { t: String(e.t || ''), ts: Number(e.ts) || 0, n: String(e.n || ''), x: e.x ? 1 : 0, p: 0 };
+        if (e && typeof e === 'object') merged[id] = { t: String(e.t || ''), ts: Number(e.ts) || 0, n: String(e.n || ''), x: e.x ? 1 : 0, p: 0, ph: String(e.ph || '') };
       }
       for (const [id, e] of Object.entries(days[day] || {})) if (e && e.p) merged[id] = e;
       days[day] = merged;
@@ -868,9 +1003,10 @@ function renderJournal() {
   j.innerHTML = gs.map(g => {
     const labels = g.items.map(e => ty(e.t).l).join(', ');
     const fresh = g.items.some(e => e.id === freshId) ? ' fresh' : '';
-    const emos = g.items.map(e => `<span class="emo" title="${esc(ty(e.t).l)}">${esc(ty(e.t).e)}</span>${e.n ? `<span class="note">${esc(fmtNote(e))}</span>` : ''}`).join('');
+    const emos = g.items.map(e => `<span class="emo" title="${esc(ty(e.t).l)}">${esc(ty(e.t).e)}</span>${e.n ? `<span class="note">${esc(fmtNote(e))}</span>` : ''}${e.ph ? `<img class="thumb" data-ph="${esc(e.ph)}" alt="Photo : ${esc(ty(e.t).l)}">` : ''}`).join('');
     return `<li><button class="jl${fresh}" type="button" data-ids="${esc(g.items.map(e => e.id).join(','))}" aria-label="${fmtSlot(g.start)} : ${esc(labels)}. Modifier"><time>${fmtSlot(g.start)}</time><span class="emos">${emos}</span></button></li>`;
   }).join('');
+  hydratePhotos(j);
 }
 function renderTotals(evs) {
   const counts = {};
@@ -993,10 +1129,11 @@ function drawToast() {
   if (!ev || ev.x) { hideToast(); return; }
   const c = ty(ev.t);
   const t = $('#toast');
-  t.innerHTML = `<p>Noté à <strong>${fmtTime(ev.ts)}</strong> : <span class="emo">${esc(c.e)}</span> ${esc(c.l)}. C’était plus tôt ?</p><div class="chips"><button class="chip" type="button" data-shift="-5">−5 min</button><button class="chip" type="button" data-shift="-15">−15 min</button><button class="chip" type="button" data-shift="-30">−30 min</button><button class="chip undo" type="button" data-undo>Annuler</button></div>`;
+  t.innerHTML = `<button class="tclose" type="button" data-tclose aria-label="Fermer le message">✕</button><p>Noté à <strong>${fmtTime(ev.ts)}</strong> : <span class="emo">${esc(c.e)}</span> ${esc(c.l)}. C’était plus tôt ?</p><div class="chips"><button class="chip" type="button" data-shift="-5">−5 min</button><button class="chip" type="button" data-shift="-15">−15 min</button><button class="chip" type="button" data-shift="-30">−30 min</button><button class="chip undo" type="button" data-undo>Annuler</button></div>`;
   t.hidden = false;
 }
 $('#toast').addEventListener('click', e => {
+  if (e.target.closest('[data-tclose]')) { hideToast(); return; }
   const s = toastState;
   if (!s) return;
   const sh = e.target.closest('[data-shift]');
@@ -1047,8 +1184,23 @@ function openNote(k) {
   const label = cat.field || `Précision, ${unit}`;
   const rec = cat.recent ? recentNotes(k, 4) : [];
   const recHtml = rec.length ? `<p class="hint">Déjà donnés, un toucher suffit :</p><div class="chips" style="margin-top:8px">${rec.map(r => `<button class="chip" type="button" data-rn="${esc(r)}">${esc(r)}</button>`).join('')}</div>` : '';
-  openSheet(`<h3><span class="emo">${esc(c.e)}</span>${esc(c.l)}</h3>${recHtml}<label class="fld"><span>${esc(label)}</span><input type="text" id="noteIn" placeholder="${esc(cat.note)}" autocomplete="off" ${decimal ? 'inputmode="decimal"' : ''} ${rec.length ? '' : 'autofocus'}></label><p class="warn" id="noteWarn" hidden></p><button class="primary" type="button" id="noteOk">Noter à ${fmtTime(Date.now())}</button><button class="secondary" type="button" data-close>Annuler</button>`, p => {
+  const photoHtml = cat.photo ? pickerHtml() + '<div class="photo-prev" hidden><img alt="Photo choisie"><button class="chip undo" type="button" data-unpick>Retirer</button></div><p class="hint" id="phMsg" hidden></p>' : '';
+  openSheet(`<h3><span class="emo">${esc(c.e)}</span>${esc(c.l)}</h3>${recHtml}<label class="fld"><span>${esc(label)}</span><input type="text" id="noteIn" placeholder="${esc(cat.note)}" autocomplete="off" ${decimal ? 'inputmode="decimal"' : ''} ${rec.length || cat.photo ? '' : 'autofocus'}></label>${photoHtml}<p class="warn" id="noteWarn" hidden></p><button class="primary" type="button" id="noteOk">Noter à ${fmtTime(Date.now())}</button><button class="secondary" type="button" data-close>Annuler</button>`, p => {
     const inp = $('#noteIn', p), warn = $('#noteWarn', p);
+    const prev = $('.photo-prev', p), msg = $('#phMsg', p);
+    let pending = null, prevURL = null;
+    const clearPrev = () => { if (prevURL) URL.revokeObjectURL(prevURL); prevURL = null; };
+    const takeFile = async file => {
+      if (!file) return;
+      msg.hidden = false; msg.textContent = 'Préparation de la photo…';
+      try {
+        pending = await preparePhoto(file);
+        clearPrev();
+        prevURL = URL.createObjectURL(pending);
+        $('img', prev).src = prevURL;
+        prev.hidden = false; msg.hidden = true;
+      } catch (err) { pending = null; msg.textContent = 'Cette image n’a pas pu être lue. Essayez une autre photo.'; }
+    };
     p.oninput = () => {
       if (k !== 'temp') return;
       const v = parseFloat(inp.value.replace(',', '.')), a = ageDays();
@@ -1056,8 +1208,22 @@ function openNote(k) {
       warn.hidden = !show;
       if (show) warn.textContent = FEVER_MSG;
     };
-    const go = n => { closeSheet(); afterLog(addEvent(k, n)); };
+    const go = async n => {
+      let ph = '';
+      if (pending) {
+        const btn = $('#noteOk', p);
+        btn.disabled = true;
+        try { ph = uid(); await photoDB.put(ph, pending); askPersist(); }
+        catch (err) { btn.disabled = false; msg.hidden = false; msg.textContent = 'La photo n’a pas pu être enregistrée sur ce téléphone.'; return; }
+      }
+      clearPrev();
+      closeSheet();
+      afterLog(addEvent(k, n, Date.now(), ph));
+    };
     p.onclick = e => {
+      const pk = e.target.closest('[data-pick]');
+      if (pk) { pickPhoto(pk.dataset.pick).then(takeFile); return; }
+      if (e.target.closest('[data-unpick]')) { pending = null; clearPrev(); prev.hidden = true; return; }
       const r = e.target.closest('[data-rn]');
       if (r) { go(r.dataset.rn); return; }
       if (e.target.closest('#noteOk')) go(inp.value.trim());
@@ -1069,11 +1235,16 @@ function openGroup(day, ids) {
   const live = () => ids.map(id => Object.assign({ id }, (days[day] || {})[id])).filter(e => e.t && !e.x && CATALOG[e.t]);
   const evs = live();
   if (!evs.length) return;
+  const shareOK = canShareFiles();
   openSheet(`<h3>Modifier ce moment</h3><ul class="edit-list">${evs.map(e => {
     const c = ty(e.t), cat = CATALOG[e.t];
-    return `<li data-id="${esc(e.id)}"><div class="er"><span class="emo">${esc(c.e)}</span><span class="el">${esc(c.l)}</span><input type="time" value="${hhmm(e.ts)}" aria-label="Heure : ${esc(c.l)}"><button class="chip undo" type="button" data-del aria-label="Supprimer : ${esc(c.l)}">Supprimer</button></div>${(cat.note || cat.opts) ? `<input type="text" class="en" value="${esc(e.n || '')}" placeholder="Précision" aria-label="Précision : ${esc(c.l)}">` : ''}</li>`;
+    const photo = e.ph
+      ? `<div class="edit-photo"><img class="photo-big" data-ph="${esc(e.ph)}" alt="Photo : ${esc(c.l)}"><div class="chips">${shareOK ? '<button class="chip" type="button" data-shph>Partager la photo</button>' : ''}<button class="chip undo" type="button" data-rmph>Retirer la photo</button></div></div>`
+      : (cat.photo ? `<div class="edit-photo">${pickerHtml()}</div>` : '');
+    return `<li data-id="${esc(e.id)}"><div class="er"><span class="emo">${esc(c.e)}</span><span class="el">${esc(c.l)}</span><input type="time" value="${hhmm(e.ts)}" aria-label="Heure : ${esc(c.l)}"><button class="chip undo" type="button" data-del aria-label="Supprimer : ${esc(c.l)}">Supprimer</button></div>${(cat.note || cat.opts) ? `<input type="text" class="en" value="${esc(e.n || '')}" placeholder="Précision" aria-label="Précision : ${esc(c.l)}">` : ''}${photo}</li>`;
   }).join('')}</ul><button class="primary" type="button" data-close>Terminé</button>`, p => {
-    p.onchange = e => {
+    hydratePhotos(p);
+    p.onchange = async e => {
       const li = e.target.closest('li[data-id]');
       if (!li) return;
       const id = li.dataset.id;
@@ -1088,6 +1259,27 @@ function openGroup(day, ids) {
       }
     };
     p.onclick = e => {
+      const li0 = e.target.closest('li[data-id]');
+      const ev0 = li0 && days[day] && days[day][li0.dataset.id];
+      const pk = e.target.closest('[data-pick]');
+      if (pk && li0) {
+        const id = li0.dataset.id;
+        pickPhoto(pk.dataset.pick).then(async f => {
+          if (!f) return;
+          try {
+            const blob = await preparePhoto(f);
+            const ph = uid();
+            await photoDB.put(ph, blob);
+            askPersist();
+            setEvent(day, id, { ph });
+            render();
+            if (!sheet.hidden) openGroup(day, ids);
+          } catch (err) {}
+        });
+        return;
+      }
+      if (ev0 && e.target.closest('[data-shph]')) { sharePhoto(ev0); return; }
+      if (ev0 && e.target.closest('[data-rmph]')) { dropPhoto(ev0.ph); setEvent(day, li0.dataset.id, { ph: '' }); render(); openGroup(day, ids); return; }
       const del = e.target.closest('[data-del]');
       if (!del) return;
       const li = del.closest('li[data-id]');
@@ -1221,10 +1413,13 @@ function openOnboarding() {
   onSheetClose = () => { prefs.onboarded = 1; savePrefs(); };
 }
 function openClear() {
-  openSheet(`<h3>Effacer les données de cet appareil ?</h3><p>${db ? 'Le journal partagé reste en ligne : il réapparaîtra à la prochaine synchronisation.' : 'Le journal, les réglages et les vaccins cochés seront définitivement perdus.'}</p><button class="primary" type="button" id="cGo">Effacer</button><button class="secondary" type="button" data-close>Annuler</button>`, p => {
+  openSheet(`<h3>Effacer les données de cet appareil ?</h3><p>${db ? 'Le journal partagé reste en ligne : il réapparaîtra à la prochaine synchronisation.' : 'Le journal, les photos, les réglages et les vaccins cochés seront définitivement perdus.'}</p><button class="primary" type="button" id="cGo">Effacer</button><button class="secondary" type="button" data-close>Annuler</button>`, p => {
     p.onclick = e => {
       if (!e.target.closest('#cGo')) return;
       ['bb.profile', 'bb.days', 'bb.prefs', 'bb.profilePending'].forEach(store.del);
+      photoDB.clear().catch(() => {});
+      phURLs.forEach(u => URL.revokeObjectURL(u));
+      phURLs.clear();
       profile = blankProfile(); days = {}; profilePending = false;
       prefs = { theme: 'auto', lastShare: 0, seenFever: {}, onboarded: 0 };
       closeSheet(); applyTheme(); tab = 'jour'; viewDay = todayKey(); hideToast(); render(true);
@@ -1240,6 +1435,12 @@ $('#grid').addEventListener('click', e => {
   logType(b.dataset.k);
 });
 $('#moreBtn').addEventListener('click', openMore);
+['#camInput', '#galInput'].forEach(sel => $(sel).addEventListener('change', e => {
+  const f = e.target.files && e.target.files[0];
+  const r = pickResolve;
+  pickResolve = null;
+  if (r) r(f || null);
+}));
 $('#calBtn').addEventListener('click', openCalendar);
 $('#dayTitle').addEventListener('click', openCalendar);
 $('#dayTitle').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCalendar(); } });
