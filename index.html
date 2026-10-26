@@ -343,6 +343,30 @@ section > .sec:first-child { margin-top: 4px; }
 .ph-missing { font-size: 18px; opacity: .6; }
 :root[data-theme="dark"] .thumb, :root[data-theme="dark"] .photo-big, :root[data-theme="dark"] .photo-prev img { filter: sepia(.35) brightness(.8); }
 
+/* Photo de bébé (avatar) et recadrage */
+.who { flex: 1; min-width: 0; }
+.avatar {
+  appearance: none; flex: none; width: 54px; height: 54px; border-radius: 50%; padding: 0;
+  border: 1.5px dashed var(--line); background: var(--surface); color: var(--muted);
+  font-size: 26px; font-weight: 400; line-height: 1; display: grid; place-items: center; overflow: hidden;
+}
+.avatar.has { border: 2px solid var(--accent); }
+.avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avatar-big { width: min(70vw, 260px); aspect-ratio: 1; border-radius: 50%; overflow: hidden; margin: 4px auto 12px; border: 3px solid var(--accent); }
+.avatar-big img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.panel h3.center-h { justify-content: center; margin-bottom: 0; }
+.hint.center { text-align: center; margin-top: 2px; }
+:root[data-theme="dark"] .avatar img, :root[data-theme="dark"] .avatar-big img, :root[data-theme="dark"] .crop-img { filter: sepia(.35) brightness(.8); }
+.crop-stage {
+  position: relative; width: min(100%, 300px); aspect-ratio: 1; margin: 12px auto 0; overflow: hidden;
+  border-radius: 16px; background: #000; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none;
+}
+.crop-stage:active { cursor: grabbing; }
+.crop-img { position: absolute; left: 0; top: 0; transform-origin: 0 0; max-width: none; pointer-events: none; will-change: transform; }
+.crop-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .75); box-shadow: 0 0 0 600px rgba(0, 0, 0, .58); pointer-events: none; }
+.crop-zoom { display: flex; align-items: center; gap: 12px; max-width: 300px; margin: 12px auto 0; font-size: 20px; color: var(--muted); }
+.crop-zoom input { flex: 1; accent-color: var(--accent); min-height: 32px; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
@@ -351,6 +375,7 @@ section > .sec:first-child { margin-top: 4px; }
 <body>
 <header class="top">
   <div class="wrap toprow">
+    <button class="avatar" id="avatarBtn" type="button" aria-label="Ajouter une photo de bébé"><img id="avatarImg" alt="" hidden><span id="avatarPh" aria-hidden="true">+</span></button>
     <div class="who">
       <h1 id="babyName">Bébé</h1>
       <p id="babyAge"></p>
@@ -924,6 +949,7 @@ function render(force) {
 }
 function renderHeader() {
   $('#babyName').textContent = profile.name || 'Bébé';
+  $('#avatarBtn').setAttribute('aria-label', `${prefs.avatar ? 'Voir la photo de' : 'Ajouter une photo de'} ${profile.name || 'bébé'}`);
   $('#babyAge').textContent = ageLabel() || 'Date de naissance à ajouter dans Réglages';
 }
 function renderTabs() {
@@ -1047,6 +1073,7 @@ function renderReglages() {
   $('#tab-reglages').innerHTML = `
     <h2 class="sec">Bébé</h2>
     <label class="fld"><span>Prénom</span><input type="text" id="sName" value="${esc(profile.name)}" autocomplete="off" placeholder="Prénom"></label>
+    <div class="fld"><span>Photo</span><button class="secondary" type="button" id="sPhoto" style="margin-top:0">${prefs.avatar ? 'Voir, recadrer ou changer la photo' : 'Ajouter une photo'}</button></div>
     <label class="fld"><span>Date de naissance</span><input type="date" id="sBirth" value="${esc(profile.birth)}" max="${todayKey()}"></label>
     <div class="fld"><span>Sexe</span>${seg('sSex', [['f', 'Fille'], ['m', 'Garçon'], ['', 'Non précisé']], profile.sex)}<p class="hint">Servira aux courbes de croissance. Aucun effet sur les vaccins.</p></div>
     <h2 class="sec">Affichage</h2>
@@ -1085,6 +1112,7 @@ function applyTheme() {
 const sheet = $('#sheet'), panel = $('#panel');
 let onSheetClose = null;
 function openSheet(html, mount) {
+  if (onSheetClose) { const cb = onSheetClose; onSheetClose = null; cb(); }
   panel.onclick = null; panel.oninput = null; panel.onchange = null;
   panel.innerHTML = html;
   sheet.hidden = false;
@@ -1390,10 +1418,195 @@ function openShare() {
     };
   });
 }
-function openOnboarding() {
-  openSheet(`<h3>Bienvenue</h3><p class="hint">Trois informations pour afficher son âge, calculer ses vaccins et choisir le conseil du jour.</p><label class="fld"><span>Prénom de bébé</span><input type="text" id="oName" autocomplete="off" placeholder="Prénom"></label><label class="fld"><span>Date de naissance</span><input type="date" id="oBirth" max="${todayKey()}"></label><div class="fld"><span>Sexe, facultatif</span><div class="seg" id="oSex"><button type="button" data-v="f" aria-pressed="false">Fille</button><button type="button" data-v="m" aria-pressed="false">Garçon</button></div></div><button class="primary" type="button" id="oGo">Commencer</button><button class="secondary" type="button" data-close>Plus tard</button>`, p => {
-    let sex = '';
+/* ---------- Photo de bébé : recadrage en cercle ---------- */
+let obCrop = null, obSrc = null;
+function mountCropper(box, blob, init) {
+  box.innerHTML = '<div class="crop-stage"><img class="crop-img" alt="" draggable="false"><div class="crop-ring"></div></div><label class="crop-zoom"><span aria-hidden="true">−</span><input type="range" min="1" max="4" step="0.01" value="1" aria-label="Zoom"><span aria-hidden="true">+</span></label><p class="hint center">Faites glisser pour cadrer, pincez ou utilisez le curseur pour zoomer.</p>';
+  const stage = $('.crop-stage', box), img = $('.crop-img', box), range = $('input[type="range"]', box);
+  const url = URL.createObjectURL(blob);
+  let w = 0, h = 0, S = 0, b = 1, z = 1, tx = 0, ty = 0;
+  const pts = new Map();
+  const clamp = () => {
+    const W = w * b * z, H = h * b * z;
+    tx = Math.min(0, Math.max(S - W, tx));
+    ty = Math.min(0, Math.max(S - H, ty));
+  };
+  const apply = () => { img.style.transform = `translate(${tx}px, ${ty}px) scale(${b * z})`; };
+  const zoomTo = (nz, fx, fy) => {
+    if (!S) return;
+    nz = Math.min(4, Math.max(1, nz));
+    const ix = (fx - tx) / (b * z), iy = (fy - ty) / (b * z);
+    z = nz;
+    tx = fx - ix * b * z;
+    ty = fy - iy * b * z;
+    clamp(); apply();
+    range.value = String(z);
+  };
+  const layout = () => {
+    const nS = stage.clientWidth;
+    if (!nS || !w) return;
+    let cx, cy;
+    if (S) { cx = (S / 2 - tx) / (b * z) / w; cy = (S / 2 - ty) / (b * z) / h; }
+    else {
+      cx = init && init.cx != null ? init.cx : 0.5;
+      cy = init && init.cy != null ? init.cy : 0.5;
+      z = init && init.z ? Math.min(4, Math.max(1, init.z)) : 1;
+    }
+    S = nS;
+    b = Math.max(S / w, S / h);
+    tx = S / 2 - cx * w * b * z;
+    ty = S / 2 - cy * h * b * z;
+    clamp(); apply();
+    range.value = String(z);
+  };
+  const ready = new Promise((res, rej) => {
+    img.onload = () => {
+      w = img.naturalWidth; h = img.naturalHeight;
+      img.style.width = w + 'px'; img.style.height = h + 'px';
+      layout(); res();
+    };
+    img.onerror = () => rej(new Error('lecture'));
+  });
+  ready.catch(() => {});
+  img.src = url;
+  stage.addEventListener('pointerdown', e => {
+    try { stage.setPointerCapture(e.pointerId); } catch (err) {}
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  });
+  stage.addEventListener('pointermove', e => {
+    const prev = pts.get(e.pointerId);
+    if (!prev) return;
+    const cur = { x: e.clientX, y: e.clientY };
+    if (pts.size === 1) { tx += cur.x - prev.x; ty += cur.y - prev.y; clamp(); apply(); }
+    else if (pts.size === 2) {
+      const other = [...pts.entries()].find(([id]) => id !== e.pointerId)[1];
+      const d0 = Math.hypot(prev.x - other.x, prev.y - other.y), d1 = Math.hypot(cur.x - other.x, cur.y - other.y);
+      if (d0 > 0) {
+        const r = stage.getBoundingClientRect();
+        zoomTo(z * d1 / d0, (cur.x + other.x) / 2 - r.left, (cur.y + other.y) / 2 - r.top);
+      }
+    }
+    pts.set(e.pointerId, cur);
+  });
+  const up = e => pts.delete(e.pointerId);
+  stage.addEventListener('pointerup', up);
+  stage.addEventListener('pointercancel', up);
+  stage.addEventListener('wheel', e => {
+    e.preventDefault();
+    const r = stage.getBoundingClientRect();
+    zoomTo(z * (e.deltaY < 0 ? 1.08 : 1 / 1.08), e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
+  range.addEventListener('input', () => zoomTo(Number(range.value), S / 2, S / 2));
+  const ro = 'ResizeObserver' in window ? new ResizeObserver(layout) : null;
+  if (ro) ro.observe(stage);
+  return {
+    ready,
+    crop: () => ({ z, cx: (S / 2 - tx) / (b * z) / w, cy: (S / 2 - ty) / (b * z) / h }),
+    export: (size = 512) => new Promise((res, rej) => {
+      const c = document.createElement('canvas');
+      c.width = c.height = size;
+      const k = b * z;
+      c.getContext('2d').drawImage(img, -tx / k, -ty / k, S / k, S / k, 0, 0, size, size);
+      c.toBlob(bl => (bl ? res(bl) : rej(new Error('export'))), 'image/jpeg', 0.88);
+    }),
+    destroy: () => { if (ro) ro.disconnect(); URL.revokeObjectURL(url); }
+  };
+}
+function forgetURL(id) { const u = phURLs.get(id); if (u) { URL.revokeObjectURL(u); phURLs.delete(id); } }
+async function saveAvatar(srcBlob, cropper) {
+  const out = await cropper.export(512);
+  if (srcBlob) await photoDB.put('avatar:src', srcBlob);
+  await photoDB.put('avatar:crop', out);
+  prefs.avatar = Object.assign({ v: Date.now() }, cropper.crop());
+  savePrefs();
+  forgetURL('avatar:crop');
+  askPersist();
+  await renderAvatar();
+}
+function removeAvatar() {
+  photoDB.del('avatar:src').catch(() => {});
+  dropPhoto('avatar:crop');
+  prefs.avatar = null;
+  savePrefs();
+  renderAvatar();
+}
+async function renderAvatar() {
+  const btn = $('#avatarBtn'), img = $('#avatarImg'), ph = $('#avatarPh');
+  const name = profile.name || 'bébé';
+  const u = prefs.avatar ? await photoURL('avatar:crop') : null;
+  if (u) {
+    img.src = u; img.alt = ''; img.hidden = false; ph.hidden = true;
+    btn.classList.add('has');
+    btn.setAttribute('aria-label', `Voir la photo de ${name}`);
+  } else {
+    img.hidden = true; img.removeAttribute('src'); ph.hidden = false;
+    btn.classList.remove('has');
+    btn.setAttribute('aria-label', `Ajouter une photo de ${name}`);
+  }
+}
+async function openAvatar() {
+  const u = prefs.avatar ? await photoURL('avatar:crop') : null;
+  if (!u) { openAvatarPick(); return; }
+  openSheet(`<div class="avatar-big"><img src="${u}" alt="Photo de ${esc(profile.name || 'bébé')}"></div><h3 class="center-h">${esc(profile.name || 'Bébé')}</h3><p class="hint center">${esc(ageLabel())}</p><button class="primary" type="button" id="avRecrop">Recadrer</button><h4>Changer de photo</h4>${pickerHtml()}<button class="secondary danger" type="button" id="avRemove">Retirer la photo</button><button class="secondary" type="button" data-close>Fermer</button>`, p => {
     p.onclick = e => {
+      const pk = e.target.closest('[data-pick]');
+      if (pk) { pickPhoto(pk.dataset.pick).then(f => { if (f) startAvatarEdit(f); }); return; }
+      if (e.target.closest('#avRecrop')) { recropAvatar(); return; }
+      if (e.target.closest('#avRemove')) { removeAvatar(); closeSheet(); }
+    };
+  });
+}
+function openAvatarPick() {
+  openSheet(`<h3>Photo de ${esc(profile.name || 'bébé')}</h3><p class="hint">Choisissez une photo, puis cadrez-la dans le cercle.</p>${pickerHtml()}<button class="secondary" type="button" data-close>Annuler</button>`, p => {
+    p.onclick = e => {
+      const pk = e.target.closest('[data-pick]');
+      if (pk) pickPhoto(pk.dataset.pick).then(f => { if (f) startAvatarEdit(f); });
+    };
+  });
+}
+async function startAvatarEdit(file) {
+  try { openAvatarEditor(await preparePhoto(file), true, null); }
+  catch (e) { openSheet('<h3>Photo illisible</h3><p>Cette image n’a pas pu être lue. Essayez une autre photo.</p><button class="secondary" type="button" data-close>Fermer</button>'); }
+}
+async function recropAvatar() {
+  let src = null;
+  try { src = await photoDB.get('avatar:src'); } catch (e) {}
+  if (src) openAvatarEditor(src, false, prefs.avatar); else openAvatarPick();
+}
+function openAvatarEditor(blob, isNew, init) {
+  let cropper = null;
+  openSheet('<h3>Cadrer la photo</h3><div id="avCrop"></div><p class="hint" id="avMsg" hidden></p><button class="primary" type="button" id="avSave">Enregistrer</button><button class="secondary" type="button" data-close>Annuler</button>', p => {
+    cropper = mountCropper($('#avCrop', p), blob, init);
+    p.onclick = async e => {
+      if (!e.target.closest('#avSave')) return;
+      const btn = $('#avSave', p);
+      btn.disabled = true;
+      try { await cropper.ready; await saveAvatar(isNew ? blob : null, cropper); closeSheet(); }
+      catch (err) { btn.disabled = false; const m = $('#avMsg', p); m.hidden = false; m.textContent = 'La photo n’a pas pu être enregistrée sur ce téléphone.'; }
+    };
+  });
+  onSheetClose = () => { if (cropper) cropper.destroy(); };
+}
+
+function openOnboarding() {
+  openSheet(`<h3>Bienvenue</h3><p class="hint">Trois informations pour afficher son âge, calculer ses vaccins et choisir le conseil du jour.</p><label class="fld"><span>Prénom de bébé</span><input type="text" id="oName" autocomplete="off" placeholder="Prénom"></label><label class="fld"><span>Date de naissance</span><input type="date" id="oBirth" max="${todayKey()}"></label><div class="fld"><span>Sexe, facultatif</span><div class="seg" id="oSex"><button type="button" data-v="f" aria-pressed="false">Fille</button><button type="button" data-v="m" aria-pressed="false">Garçon</button></div></div><div class="fld"><span>Photo, facultative</span><div id="oPick">${pickerHtml()}</div><div id="oCrop"></div><button class="chip" type="button" id="oRepick" hidden style="display:block;margin:10px auto 0">Choisir une autre photo</button></div><button class="primary" type="button" id="oGo">Commencer</button><button class="secondary" type="button" data-close>Plus tard</button>`, p => {
+    let sex = '';
+    p.onclick = async e => {
+      const pk = e.target.closest('[data-pick]');
+      if (pk) {
+        pickPhoto(pk.dataset.pick).then(async f => {
+          if (!f) return;
+          try {
+            obSrc = await preparePhoto(f);
+            if (obCrop) obCrop.destroy();
+            obCrop = mountCropper($('#oCrop', p), obSrc, null);
+            $('#oPick', p).hidden = true;
+            $('#oRepick', p).hidden = false;
+          } catch (err) {}
+        });
+        return;
+      }
+      if (e.target.closest('#oRepick')) { $('#oPick', p).hidden = false; $('#oRepick', p).hidden = true; return; }
       const s = e.target.closest('#oSex [data-v]');
       if (s) {
         sex = s.getAttribute('aria-pressed') === 'true' ? '' : s.dataset.v;
@@ -1401,16 +1614,19 @@ function openOnboarding() {
         return;
       }
       if (e.target.closest('#oGo')) {
+        const btn = $('#oGo', p);
+        btn.disabled = true;
         profile.name = $('#oName', p).value.trim();
         profile.birth = $('#oBirth', p).value || '';
         profile.sex = sex;
         saveProfile();
+        if (obCrop && obSrc) { try { await obCrop.ready; await saveAvatar(obSrc, obCrop); } catch (err) {} }
         closeSheet();
         render(true);
       }
     };
   });
-  onSheetClose = () => { prefs.onboarded = 1; savePrefs(); };
+  onSheetClose = () => { prefs.onboarded = 1; savePrefs(); if (obCrop) obCrop.destroy(); obCrop = null; obSrc = null; };
 }
 function openClear() {
   openSheet(`<h3>Effacer les données de cet appareil ?</h3><p>${db ? 'Le journal partagé reste en ligne : il réapparaîtra à la prochaine synchronisation.' : 'Le journal, les photos, les réglages et les vaccins cochés seront définitivement perdus.'}</p><button class="primary" type="button" id="cGo">Effacer</button><button class="secondary" type="button" data-close>Annuler</button>`, p => {
@@ -1422,7 +1638,7 @@ function openClear() {
       phURLs.clear();
       profile = blankProfile(); days = {}; profilePending = false;
       prefs = { theme: 'auto', lastShare: 0, seenFever: {}, onboarded: 0 };
-      closeSheet(); applyTheme(); tab = 'jour'; viewDay = todayKey(); hideToast(); render(true);
+      closeSheet(); applyTheme(); tab = 'jour'; viewDay = todayKey(); hideToast(); render(true); renderAvatar();
       if (!db) openOnboarding();
     };
   });
@@ -1435,6 +1651,7 @@ $('#grid').addEventListener('click', e => {
   logType(b.dataset.k);
 });
 $('#moreBtn').addEventListener('click', openMore);
+$('#avatarBtn').addEventListener('click', openAvatar);
 ['#camInput', '#galInput'].forEach(sel => $(sel).addEventListener('change', e => {
   const f = e.target.files && e.target.files[0];
   const r = pickResolve;
@@ -1528,6 +1745,7 @@ st.addEventListener('click', e => {
     return;
   }
   if (e.target.closest('#sResetBtns')) { profile.buttons = {}; saveProfile(); render(true); return; }
+  if (e.target.closest('#sPhoto')) { openAvatar(); return; }
   if (e.target.closest('#sClear')) openClear();
 });
 
@@ -1547,6 +1765,7 @@ function tick() {
 migrate();
 applyTheme();
 render(true);
+renderAvatar();
 setInterval(tick, 30000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
 const dbReady = initDb();
