@@ -367,6 +367,29 @@ section > .sec:first-child { margin-top: 4px; }
 .crop-zoom { display: flex; align-items: center; gap: 12px; max-width: 300px; margin: 12px auto 0; font-size: 20px; color: var(--muted); }
 .crop-zoom input { flex: 1; accent-color: var(--accent); min-height: 32px; }
 
+/* Tétée en cours, poids et biberons */
+.live { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding: 7px 7px 7px 12px; border-radius: 14px; background: var(--surface-2); border: 1.5px solid var(--accent); }
+.live .emo { font-size: 20px; }
+.live .lv-t { font-size: 14px; font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.live strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+.lv-stop { appearance: none; border: 0; background: var(--accent); color: var(--on-accent); border-radius: 10px; padding: 9px 14px; font-weight: 700; }
+.wpill {
+  appearance: none; margin-top: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--text);
+  border-radius: 999px; padding: 4px 11px 4px 8px; font-size: 13.5px; font-weight: 600; display: inline-flex;
+  align-items: center; gap: 6px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.wpill .emo { font-size: 15px; }
+.appert { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.appert div { background: var(--bg); border-radius: 14px; padding: 12px; }
+.appert strong { display: block; font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.appert span { font-size: 13px; color: var(--muted); }
+.appert p { grid-column: 1 / -1; margin: 0; }
+.eline { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.eline > span { font-size: 13.5px; color: var(--muted); font-weight: 600; min-width: 108px; }
+.eline input { flex: 1; min-width: 0; }
+.pump-total { margin: 10px 0 0; font-weight: 700; color: var(--accent); }
+.seg.big button .emo { display: block; font-size: 26px; margin-bottom: 2px; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
@@ -379,6 +402,7 @@ section > .sec:first-child { margin-top: 4px; }
     <div class="who">
       <h1 id="babyName">Bébé</h1>
       <p id="babyAge"></p>
+      <button class="wpill" id="wPill" type="button"></button>
     </div>
     <button id="themeBtn" class="icon" type="button" aria-label="Passer en mode nuit">☾</button>
   </div>
@@ -413,8 +437,9 @@ section > .sec:first-child { margin-top: 4px; }
 <div id="dock">
   <div class="wrap">
     <div class="toast" id="toast" role="status" hidden></div>
+    <div class="live" id="live" hidden></div>
     <div class="grid" id="grid"></div>
-    <button class="morebar" type="button" id="moreBtn">+ Autre : biberon, bain, température, pédiatre…</button>
+    <button class="morebar" type="button" id="moreBtn">+ Autre : biberon, prout, bain, pédiatre…</button>
   </div>
 </div>
 
@@ -486,6 +511,7 @@ const CATALOG = {
   crise:      { e: '🧨', l: 'Prout' },
   medicament: { e: '💊', l: 'Médicament', note: 'Nom, et dose si besoin', field: 'Nom du médicament', recent: 1 },
   sortie:     { e: '🏞️', l: 'Sortie' },
+  tirelait:   { e: '🐄', l: 'Tire-lait' },
   biberon:    { e: '🍼', l: 'Biberon', feed: 1 },
   jeu:        { e: '🛹', l: 'Jeu' },
   eveil:      { e: '👀', l: 'Éveil' },
@@ -499,8 +525,8 @@ const CATALOG = {
   premiere:   { e: '🎉', l: 'Première fois', note: 'Ex. premier sourire', photo: 1 },
   marquant:   { e: '🤩', l: 'Événement marquant', note: 'Ex. rencontre avec ses grands-parents', photo: 1 }
 };
-const QUICK = ['tetee', 'vitamine', 'caca', 'pipi', 'toilette', 'dodo', 'pleurs', 'crise', 'medicament', 'sortie'];
-const EXTRAS = ['biberon', 'jeu', 'eveil', 'bain', 'soin', 'regurg', 'temp'];
+const QUICK = ['tetee', 'vitamine', 'caca', 'pipi', 'toilette', 'dodo', 'pleurs', 'tirelait', 'medicament', 'sortie'];
+const EXTRAS = ['biberon', 'crise', 'jeu', 'eveil', 'bain', 'soin', 'regurg', 'temp'];
 const EVENTS = ['pediatre', 'pesee', 'vaccin', 'premiere', 'marquant'];
 
 /* Calendrier vaccinal 2026, bébés nés depuis le 1er janvier 2025 */
@@ -562,7 +588,7 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
   del(k) { try { localStorage.removeItem(k); } catch (e) {} }
 };
-const blankProfile = () => ({ name: '', birth: '', sex: '', buttons: {}, vacc: {} });
+const blankProfile = () => ({ name: '', birth: '', sex: '', buttons: {}, vacc: {}, weight: 0, weightAt: 0, bottles: 6 });
 let profile = Object.assign(blankProfile(), store.get('bb.profile', {}));
 let days = store.get('bb.days', {});
 let prefs = Object.assign({ theme: 'auto', lastShare: 0, seenFever: {}, onboarded: 0 }, store.get('bb.prefs', {}));
@@ -629,7 +655,22 @@ function groupsOf(evs) {
   }
   return out;
 }
+const fmtDur = m => (m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ' ' + pad(m % 60) : ''}`);
 function fmtNote(e) {
+  if (e.t === 'tetee') {
+    const parts = [];
+    if (e.n) parts.push(String(e.n));
+    if (e.run) parts.push('en cours');
+    else if (e.du) parts.push(fmtDur(e.du));
+    return parts.join(', ');
+  }
+  if (e.t === 'tirelait') {
+    const q = e.q || {}, side = String(e.n || '');
+    const lab = k => (k === 'g' ? 'gauche' : 'droit');
+    if (side === 'les deux') return ['g', 'd'].map(k => (q[k] ? `${lab(k)} ${q[k]} ml` : lab(k))).join(', ');
+    const k = side === 'gauche' ? 'g' : side === 'droit' ? 'd' : '';
+    return k ? (q[k] ? `${side} ${q[k]} ml` : side) : '';
+  }
   const n = String(e.n || '').trim();
   if (!n) return '';
   const num = /^\d+([.,]\d+)?$/.test(n);
@@ -637,11 +678,11 @@ function fmtNote(e) {
   if (num && e.t === 'pesee') return n + ' kg';
   return n;
 }
-function addEvent(t, n = '', ts = Date.now(), ph = '') {
+function addEvent(t, n = '', ts = Date.now(), ph = '', extra) {
   const day = dayKey(new Date(ts));
   const id = uid();
   if (!days[day]) days[day] = {};
-  days[day][id] = { t, ts, n, x: 0, p: 1, ph };
+  days[day][id] = Object.assign({ t, ts, n, x: 0, p: 1, ph }, extra || {});
   saveDays();
   pushEvent(day, id);
   return { day, id };
@@ -655,7 +696,7 @@ function setEvent(day, id, patch) {
     pushEvent(day, id);
     const nid = uid();
     if (!days[nd]) days[nd] = {};
-    days[nd][nid] = { t: ev.t, ts: patch.ts, n: patch.n != null ? patch.n : (ev.n || ''), x: 0, p: 1, ph: ev.ph || '' };
+    days[nd][nid] = Object.assign({}, ev, patch, { x: 0, p: 1 });
     saveDays();
     pushEvent(nd, nid);
     return { day: nd, id: nid };
@@ -794,6 +835,11 @@ function unsubAll() {
   for (const d of Object.keys(subs)) { try { subs[d](); } catch (e) {} delete subs[d]; }
   if (profUnsub) { try { profUnsub(); } catch (e) {} profUnsub = null; }
 }
+function packEv(e) {
+  const o = { t: e.t, ts: e.ts, n: e.n || '', x: e.x ? 1 : 0, ph: e.ph || '', du: Number(e.du) || 0, run: e.run ? 1 : 0 };
+  if (e.q) o.q = { g: Number(e.q.g) || 0, d: Number(e.q.d) || 0 };
+  return o;
+}
 function pushEvent(day, id) {
   if (!db) return;
   const key = day + '/' + id;
@@ -801,7 +847,7 @@ function pushEvent(day, id) {
   pushTimers[key] = setTimeout(() => enqueue('d:' + day, async () => {
     const ev = days[day] && days[day][id];
     if (!ev || !db) return;
-    const sent = { t: ev.t, ts: ev.ts, n: ev.n || '', x: ev.x ? 1 : 0, ph: ev.ph || '' };
+    const sent = packEv(ev);
     const body = { events: { [id]: sent } };
     const ref = db.doc('days/' + day);
     try {
@@ -814,7 +860,7 @@ function pushEvent(day, id) {
       } else throw e;
     }
     const cur = days[day] && days[day][id];
-    if (cur && cur.ts === sent.ts && (cur.x ? 1 : 0) === sent.x && (cur.n || '') === sent.n && (cur.ph || '') === sent.ph) { cur.p = 0; saveDays(); }
+    if (cur && JSON.stringify(packEv(cur)) === JSON.stringify(sent)) { cur.p = 0; saveDays(); }
   }), 350);
 }
 function saveProfile() {
@@ -841,7 +887,10 @@ function applyRemoteProfile(d) {
     birth: /^\d{4}-\d{2}-\d{2}$/.test(String(d.birth || '')) ? d.birth : '',
     sex: ['f', 'm'].includes(d.sex) ? d.sex : '',
     buttons: obj(d.buttons),
-    vacc: obj(d.vacc)
+    vacc: obj(d.vacc),
+    weight: Number(d.weight) > 0 ? Number(d.weight) : 0,
+    weightAt: Number(d.weightAt) || 0,
+    bottles: [4, 5, 6, 7, 8].includes(Number(d.bottles)) ? Number(d.bottles) : 6
   });
   store.set('bb.profile', profile);
 }
@@ -852,7 +901,10 @@ function subscribeDay(day) {
       const remote = (data.events && typeof data.events === 'object') ? data.events : {};
       const merged = {};
       for (const [id, e] of Object.entries(remote)) {
-        if (e && typeof e === 'object') merged[id] = { t: String(e.t || ''), ts: Number(e.ts) || 0, n: String(e.n || ''), x: e.x ? 1 : 0, p: 0, ph: String(e.ph || '') };
+        if (e && typeof e === 'object') {
+          merged[id] = { t: String(e.t || ''), ts: Number(e.ts) || 0, n: String(e.n || ''), x: e.x ? 1 : 0, p: 0, ph: String(e.ph || ''), du: Number(e.du) || 0, run: e.run ? 1 : 0 };
+          if (e.q && typeof e.q === 'object') merged[id].q = { g: Number(e.q.g) || 0, d: Number(e.q.d) || 0 };
+        }
       }
       for (const [id, e] of Object.entries(days[day] || {})) if (e && e.p) merged[id] = e;
       days[day] = merged;
@@ -951,6 +1003,26 @@ function renderHeader() {
   $('#babyName').textContent = profile.name || 'Bébé';
   $('#avatarBtn').setAttribute('aria-label', `${prefs.avatar ? 'Voir la photo de' : 'Ajouter une photo de'} ${profile.name || 'bébé'}`);
   $('#babyAge').textContent = ageLabel() || 'Date de naissance à ajouter dans Réglages';
+  const wp = $('#wPill');
+  if (profile.weight) {
+    const a = appert(profile.weight, profile.bottles || 6);
+    wp.innerHTML = `<span class="emo">⚖️</span>${esc(fmtKg(profile.weight))} · biberon ≈ ${a.per} ml`;
+    wp.setAttribute('aria-label', `Poids ${fmtKg(profile.weight)}, biberon d’environ ${a.per} ml. Modifier le poids`);
+  } else {
+    wp.innerHTML = '<span class="emo">⚖️</span>Ajouter son poids';
+    wp.setAttribute('aria-label', 'Ajouter le poids pour calculer les biberons');
+  }
+}
+function parseKg(str) {
+  let v = parseFloat(String(str || '').replace(',', '.').replace(/[^\d.]/g, ''));
+  if (!v) return 0;
+  if (v > 100) v = v / 1000;
+  return v >= 1 && v <= 25 ? Math.round(v * 1000) / 1000 : 0;
+}
+const fmtKg = kg => kg.toLocaleString('fr-FR', { maximumFractionDigits: 3 }) + ' kg';
+function appert(kg, n) {
+  const day = Math.round((kg * 1000 / 10 + 250) / 10) * 10;
+  return { day, per: Math.round(day / n / 5) * 5 };
 }
 function renderTabs() {
   document.querySelectorAll('.tab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
@@ -983,6 +1055,7 @@ function renderJour() {
   }
   $('#banners').innerHTML = out.join('');
   renderLast();
+  renderLive();
   renderJournal();
   renderTip();
 }
@@ -1004,7 +1077,11 @@ function renderLast() {
       if (s === 'droit') extra = ', prochain sein : gauche';
     }
     const ago = fmtAgo(now - feed.ts);
-    html += `<p class="last-label"><span class="emo">${esc(c.e)}</span>${ago === 'à l’instant' ? 'Dernier repas' : 'Dernier repas, il y a'}</p><p class="last-big">${ago === 'à l’instant' ? 'À l’instant' : ago}</p><p class="last-sub">à ${fmtTime(feed.ts)}, ${esc(c.l.toLowerCase())}${extra}</p>`;
+    if (feed.run) {
+      html += `<p class="last-label"><span class="emo">${esc(c.e)}</span>Tétée en cours depuis</p><p class="last-big">${ago === 'à l’instant' ? '0 min' : ago}</p><p class="last-sub">début à ${fmtTime(feed.ts)}${feed.n ? `, sein ${esc(feed.n)}` : ''}</p>`;
+    } else {
+      html += `<p class="last-label"><span class="emo">${esc(c.e)}</span>${ago === 'à l’instant' ? 'Dernier repas' : 'Dernier repas, il y a'}</p><p class="last-big">${ago === 'à l’instant' ? 'À l’instant' : ago}</p><p class="last-sub">à ${fmtTime(feed.ts)}, ${esc(c.l.toLowerCase())}${feed.du ? `, ${fmtDur(feed.du)}` : ''}${extra}</p>`;
+    }
   } else {
     html += '<p class="last-label">Aucun repas noté depuis hier</p>';
   }
@@ -1029,7 +1106,7 @@ function renderJournal() {
   j.innerHTML = gs.map(g => {
     const labels = g.items.map(e => ty(e.t).l).join(', ');
     const fresh = g.items.some(e => e.id === freshId) ? ' fresh' : '';
-    const emos = g.items.map(e => `<span class="emo" title="${esc(ty(e.t).l)}">${esc(ty(e.t).e)}</span>${e.n ? `<span class="note">${esc(fmtNote(e))}</span>` : ''}${e.ph ? `<img class="thumb" data-ph="${esc(e.ph)}" alt="Photo : ${esc(ty(e.t).l)}">` : ''}`).join('');
+    const emos = g.items.map(e => `<span class="emo" title="${esc(ty(e.t).l)}">${esc(ty(e.t).e)}</span>${fmtNote(e) ? `<span class="note">${esc(fmtNote(e))}</span>` : ''}${e.ph ? `<img class="thumb" data-ph="${esc(e.ph)}" alt="Photo : ${esc(ty(e.t).l)}">` : ''}`).join('');
     return `<li><button class="jl${fresh}" type="button" data-ids="${esc(g.items.map(e => e.id).join(','))}" aria-label="${fmtSlot(g.start)} : ${esc(labels)}. Modifier"><time>${fmtSlot(g.start)}</time><span class="emos">${emos}</span></button></li>`;
   }).join('');
   hydratePhotos(j);
@@ -1041,7 +1118,10 @@ function renderTotals(evs) {
   const el = $('#totals');
   el.hidden = !order.length;
   el.setAttribute('aria-label', 'Total du jour : ' + order.map(k => `${counts[k]} ${ty(k).l}`).join(', '));
-  el.innerHTML = order.map(k => `<span title="${esc(ty(k).l)}"><span class="emo">${esc(ty(k).e)}</span>${counts[k]}</span>`).join('');
+  const dur = evs.filter(e => e.t === 'tetee').reduce((a, e) => a + (Number(e.du) || 0), 0);
+  const ml = evs.filter(e => e.t === 'tirelait').reduce((a, e) => a + (e.q ? (Number(e.q.g) || 0) + (Number(e.q.d) || 0) : 0), 0);
+  const more = k => (k === 'tetee' && dur ? ` · ${fmtDur(dur)}` : k === 'tirelait' && ml ? ` · ${ml} ml` : '');
+  el.innerHTML = order.map(k => `<span title="${esc(ty(k).l)}"><span class="emo">${esc(ty(k).e)}</span>${counts[k]}${more(k)}</span>`).join('');
 }
 function renderTip() {
   const a = ageDays();
@@ -1144,11 +1224,152 @@ function afterLog(r) {
   render();
 }
 function logType(k) {
+  if (k === 'tirelait') { openPump(); return; }
   const cat = CATALOG[k] || {};
   if (cat.note || cat.opts) { openNote(k); return; }
   closeSheet();
   afterLog(addEvent(k));
 }
+function showInfo(text) {
+  toastState = null;
+  const t = $('#toast');
+  t.innerHTML = `<button class="tclose" type="button" data-tclose aria-label="Fermer le message">✕</button><p style="margin:0">${esc(text)}</p>`;
+  t.hidden = false;
+  armToast();
+}
+
+/* ---------- Tétée chronométrée ---------- */
+const LONG_FEED = 90 * 60000;
+const askedFeeds = new Set();
+function runningFeed() {
+  const ev = recent();
+  for (let i = ev.length - 1; i >= 0; i--) if (ev[i].t === 'tetee' && ev[i].run) return ev[i];
+  return null;
+}
+const clock = ms => {
+  const sec = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), r = sec % 60;
+  return h ? `${h}:${pad(m)}:${pad(r)}` : `${m}:${pad(r)}`;
+};
+function renderLive() {
+  const el = $('#live'), f = runningFeed();
+  if (!f) { el.hidden = true; el.innerHTML = ''; return; }
+  el.hidden = false;
+  el.innerHTML = `<span class="emo">${esc(ty('tetee').e)}</span><span class="lv-t">Tétée en cours${f.n ? `, sein ${esc(f.n)}` : ''}</span><strong id="liveClock">${clock(Date.now() - f.ts)}</strong><button class="lv-stop" type="button" data-stop="${esc(f.day)}|${esc(f.id)}">Terminer</button>`;
+}
+function closeRunningFeeds() {
+  const now = Date.now();
+  recent().forEach(e => {
+    if (e.t === 'tetee' && e.run && now - e.ts <= LONG_FEED) setEvent(e.day, e.id, { du: Math.max(1, Math.round((now - e.ts) / 60000)), run: 0 });
+  });
+}
+function stopFeed(ev) {
+  const m = Math.round((Date.now() - ev.ts) / 60000);
+  if (m * 60000 > LONG_FEED) { askDuration(ev); return; }
+  setEvent(ev.day, ev.id, { du: Math.max(1, m), run: 0 });
+  buzz();
+  showInfo(`Tétée terminée : ${fmtDur(Math.max(1, m))}.`);
+  render();
+}
+function askDuration(ev) {
+  openSheet(`<h3><span class="emo">${esc(ty('tetee').e)}</span>Durée de la tétée</h3><p>La tétée commencée à ${fmtTime(ev.ts)}${ev.n ? ` (sein ${esc(ev.n)})` : ''} n’a pas été arrêtée. Combien de temps a-t-elle duré environ ?</p><div class="chips">${[5, 10, 15, 20, 30, 45, 60].map(m => `<button class="chip" type="button" data-du="${m}">${m} min</button>`).join('')}</div><label class="fld"><span>Autre durée, en minutes</span><input type="text" inputmode="numeric" id="duIn" autocomplete="off" placeholder="Ex. 25"></label><button class="primary" type="button" id="duOk">Valider</button><button class="secondary" type="button" data-close>Plus tard</button>`, p => {
+    const done = m => {
+      setEvent(ev.day, ev.id, { du: m, run: 0 });
+      closeSheet();
+      showInfo(`Tétée de ${fmtTime(ev.ts)} : ${fmtDur(m)}.`);
+      render();
+      setTimeout(checkLongFeeds, 400);
+    };
+    p.onclick = e => {
+      const c = e.target.closest('[data-du]');
+      if (c) { done(Number(c.dataset.du)); return; }
+      if (e.target.closest('#duOk')) { const v = parseInt($('#duIn', p).value, 10); if (v > 0 && v < 600) done(v); }
+    };
+  });
+}
+function checkLongFeeds() {
+  if (!sheet.hidden) return;
+  const now = Date.now();
+  const f = recent().find(e => e.t === 'tetee' && e.run && now - e.ts > LONG_FEED && !askedFeeds.has(e.id));
+  if (f) { askedFeeds.add(f.id); askDuration(f); }
+}
+
+/* ---------- Tire-lait ---------- */
+function openPump() {
+  const c = ty('tirelait');
+  let sides = null;
+  const head = `<h3><span class="emo">${esc(c.e)}</span>${esc(c.l)}</h3>`;
+  const step1 = () => `${head}<p class="hint">Combien de seins ?</p><div class="seg big"><button type="button" data-n="1"><span class="emo">🐄</span>Un sein</button><button type="button" data-n="2"><span class="emo">🐄🐄</span>Les deux</button></div><button class="secondary" type="button" data-close>Annuler</button>`;
+  const step2 = () => `${head}<p class="hint">Quel sein ?</p><div class="seg big"><button type="button" data-s="g">Sein gauche</button><button type="button" data-s="d">Sein droit</button></div><button class="secondary" type="button" data-back>Retour</button>`;
+  const step3 = () => `${head}<p class="hint">Quantité tirée, facultative</p>${sides.map(k => `<label class="fld"><span>Sein ${k === 'g' ? 'gauche' : 'droit'}, en ml</span><input type="text" inputmode="numeric" data-q="${k}" placeholder="Ex. 60" autocomplete="off"></label>`).join('')}<p class="pump-total" id="pTot" hidden></p><button class="primary" type="button" id="pOk">Noter à ${fmtTime(Date.now())}</button><button class="secondary" type="button" data-back>Retour</button>`;
+  const qty = p => {
+    const q = { g: 0, d: 0 };
+    p.querySelectorAll('[data-q]').forEach(i => { const v = parseInt(i.value, 10); if (v > 0 && v < 1000) q[i.dataset.q] = v; });
+    return q;
+  };
+  const toStep3 = p => {
+    p.innerHTML = step3();
+    const f = p.querySelector('[data-q]');
+    if (f) setTimeout(() => f.focus(), 60);
+  };
+  openSheet(step1(), p => {
+    p.oninput = () => {
+      const tot = $('#pTot', p);
+      if (!tot || sides.length < 2) return;
+      const q = qty(p), sum = q.g + q.d;
+      tot.hidden = !sum;
+      tot.textContent = `Total : ${sum} ml`;
+    };
+    p.onclick = e => {
+      const n = e.target.closest('[data-n]');
+      if (n) { if (n.dataset.n === '2') { sides = ['g', 'd']; toStep3(p); } else p.innerHTML = step2(); return; }
+      const sd = e.target.closest('[data-s]');
+      if (sd) { sides = [sd.dataset.s]; toStep3(p); return; }
+      if (e.target.closest('[data-back]')) { sides = null; p.innerHTML = step1(); return; }
+      if (e.target.closest('#pOk')) {
+        const q = qty(p);
+        const n2 = sides.length === 2 ? 'les deux' : (sides[0] === 'g' ? 'gauche' : 'droit');
+        closeSheet();
+        afterLog(addEvent('tirelait', n2, Date.now(), '', { q }));
+      }
+    };
+  });
+}
+
+/* ---------- Poids et règle d'Appert ---------- */
+function openWeight() {
+  let n = profile.bottles || 6;
+  const name = profile.name || 'bébé';
+  openSheet(`<h3><span class="emo">⚖️</span>Poids et biberons</h3><label class="fld"><span>Poids de ${esc(name)}, en kg</span><input type="text" id="wIn" inputmode="decimal" autocomplete="off" placeholder="Ex. 4,2" value="${profile.weight ? esc(String(profile.weight).replace('.', ',')) : ''}"></label>${profile.weightAt ? `<p class="hint">Dernière mise à jour le ${esc(fmtShort(new Date(profile.weightAt)))}. Une pesée PMI notée avec un poids le met aussi à jour.</p>` : '<p class="hint">Une pesée PMI notée avec un poids le mettra aussi à jour.</p>'}<div class="fld"><span>Biberons par jour</span><div class="seg" id="wN">${[4, 5, 6, 7, 8].map(v => `<button type="button" data-n="${v}" aria-pressed="${v === n}">${v}</button>`).join('')}</div></div><div class="appert" id="wRes"></div><p class="warn" id="wWarn" hidden></p><p class="hint">Règle d’Appert : poids en grammes ÷ 10 + 250 ml par 24 h. C’est un repère indicatif : l’appétit et la courbe de poids comptent davantage, à voir avec votre pédiatre. En allaitement mixte, ce total inclut les tétées : les biberons n’en couvrent qu’une partie.</p><button class="primary" type="button" id="wOk">Enregistrer</button><button class="secondary" type="button" data-close>Fermer</button>`, p => {
+    const upd = () => {
+      const kg = parseKg($('#wIn', p).value), res = $('#wRes', p), warn = $('#wWarn', p);
+      if (!kg) { res.innerHTML = '<p class="hint">Indiquez le poids pour calculer les quantités.</p>'; warn.hidden = true; return; }
+      const a = appert(kg, n);
+      res.innerHTML = `<div><strong>${a.day} ml</strong><span>par jour</span></div><div><strong>≈ ${a.per} ml</strong><span>par biberon, sur ${n}</span></div>`;
+      warn.hidden = kg <= 6;
+      if (kg > 6) warn.textContent = 'Ce repère est surtout utilisé jusqu’à 6 kg environ et avant la diversification : demandez conseil à votre pédiatre.';
+    };
+    upd();
+    p.oninput = upd;
+    p.onclick = e => {
+      const b = e.target.closest('#wN [data-n]');
+      if (b) {
+        n = Number(b.dataset.n);
+        p.querySelectorAll('#wN [data-n]').forEach(x => x.setAttribute('aria-pressed', String(Number(x.dataset.n) === n)));
+        upd();
+        return;
+      }
+      if (e.target.closest('#wOk')) {
+        const kg = parseKg($('#wIn', p).value);
+        if (kg && kg !== profile.weight) { profile.weight = kg; profile.weightAt = Date.now(); }
+        profile.bottles = n;
+        saveProfile();
+        closeSheet();
+        renderHeader();
+      }
+    };
+  });
+}
+
 function showToast(day, id) { toastState = { day, id }; drawToast(); armToast(); }
 function armToast() { clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, 8000); }
 function hideToast() { toastState = null; $('#toast').hidden = true; }
@@ -1203,7 +1424,7 @@ function openNote(k) {
     const sug = side === 'gauche' ? 'droit' : side === 'droit' ? 'gauche' : '';
     const hint = sug ? `Dernière tétée à ${fmtTime(lastT.ts)}, sein ${side}.` : 'Quel sein ?';
     openSheet(`<h3><span class="emo">${esc(c.e)}</span>${esc(c.l)}</h3><p class="hint">${esc(hint)}</p><div class="seg big">${cat.opts.map(o => `<button type="button" data-o="${o}"${o === sug ? ' class="sug"' : ''}>Sein ${o}${o === sug ? '<small>à son tour</small>' : ''}</button>`).join('')}</div><button class="secondary" type="button" data-o="">Sans préciser</button>`, p => {
-      p.onclick = e => { const b = e.target.closest('[data-o]'); if (!b) return; closeSheet(); afterLog(addEvent(k, b.dataset.o)); };
+      p.onclick = e => { const b = e.target.closest('[data-o]'); if (!b) return; closeSheet(); if (k === 'tetee') closeRunningFeeds(); afterLog(addEvent(k, b.dataset.o, Date.now(), '', k === 'tetee' ? { run: 1 } : null)); };
     });
     return;
   }
@@ -1246,6 +1467,7 @@ function openNote(k) {
       }
       clearPrev();
       closeSheet();
+      if (k === 'pesee') { const kg = parseKg(n); if (kg) { profile.weight = kg; profile.weightAt = Date.now(); saveProfile(); } }
       afterLog(addEvent(k, n, Date.now(), ph));
     };
     p.onclick = e => {
@@ -1269,13 +1491,34 @@ function openGroup(day, ids) {
     const photo = e.ph
       ? `<div class="edit-photo"><img class="photo-big" data-ph="${esc(e.ph)}" alt="Photo : ${esc(c.l)}"><div class="chips">${shareOK ? '<button class="chip" type="button" data-shph>Partager la photo</button>' : ''}<button class="chip undo" type="button" data-rmph>Retirer la photo</button></div></div>`
       : (cat.photo ? `<div class="edit-photo">${pickerHtml()}</div>` : '');
-    return `<li data-id="${esc(e.id)}"><div class="er"><span class="emo">${esc(c.e)}</span><span class="el">${esc(c.l)}</span><input type="time" value="${hhmm(e.ts)}" aria-label="Heure : ${esc(c.l)}"><button class="chip undo" type="button" data-del aria-label="Supprimer : ${esc(c.l)}">Supprimer</button></div>${(cat.note || cat.opts) ? `<input type="text" class="en" value="${esc(e.n || '')}" placeholder="Précision" aria-label="Précision : ${esc(c.l)}">` : ''}${photo}</li>`;
+    let more = '';
+    if (e.t === 'tetee') more = `<div class="eline"><span>Durée, en min</span><input type="text" inputmode="numeric" class="edu" value="${e.du || ''}" placeholder="${e.run ? 'en cours' : 'min'}" autocomplete="off">${e.run ? '<button class="chip" type="button" data-stopnow>Terminer</button>' : ''}</div>`;
+    if (e.t === 'tirelait') {
+      const sd = e.n === 'les deux' ? ['g', 'd'] : e.n === 'gauche' ? ['g'] : e.n === 'droit' ? ['d'] : [];
+      const q = e.q || {};
+      more = sd.map(k => `<div class="eline"><span>Sein ${k === 'g' ? 'gauche' : 'droit'}, ml</span><input type="text" inputmode="numeric" class="eq" data-s="${k}" value="${q[k] || ''}" autocomplete="off"></div>`).join('');
+    }
+    return `<li data-id="${esc(e.id)}"><div class="er"><span class="emo">${esc(c.e)}</span><span class="el">${esc(c.l)}</span><input type="time" value="${hhmm(e.ts)}" aria-label="Heure : ${esc(c.l)}"><button class="chip undo" type="button" data-del aria-label="Supprimer : ${esc(c.l)}">Supprimer</button></div>${(cat.note || cat.opts) ? `<input type="text" class="en" value="${esc(e.n || '')}" placeholder="Précision" aria-label="Précision : ${esc(c.l)}">` : ''}${more}${photo}</li>`;
   }).join('')}</ul><button class="primary" type="button" data-close>Terminé</button>`, p => {
     hydratePhotos(p);
     p.onchange = async e => {
       const li = e.target.closest('li[data-id]');
       if (!li) return;
       const id = li.dataset.id;
+      if (e.target.classList.contains('edu')) {
+        const v = parseInt(e.target.value, 10);
+        if (v > 0 && v < 600) { setEvent(day, id, { du: v, run: 0 }); render(); }
+        return;
+      }
+      if (e.target.classList.contains('eq')) {
+        const cur = days[day][id];
+        const q = Object.assign({ g: 0, d: 0 }, cur.q || {});
+        const v = parseInt(e.target.value, 10);
+        q[e.target.dataset.s] = v > 0 && v < 1000 ? v : 0;
+        setEvent(day, id, { q });
+        render();
+        return;
+      }
       if (e.target.type === 'time' && e.target.value) {
         const [h, m] = e.target.value.split(':').map(Number);
         const d = parseDay(day); d.setHours(h, m, 0, 0);
@@ -1304,6 +1547,12 @@ function openGroup(day, ids) {
             if (!sheet.hidden) openGroup(day, ids);
           } catch (err) {}
         });
+        return;
+      }
+      if (ev0 && e.target.closest('[data-stopnow]')) {
+        const eid = li0.dataset.id;
+        stopFeed(Object.assign({ id: eid, day }, ev0));
+        if (days[day][eid] && !days[day][eid].run && !sheet.hidden) openGroup(day, ids);
         return;
       }
       if (ev0 && e.target.closest('[data-shph]')) { sharePhoto(ev0); return; }
@@ -1366,7 +1615,7 @@ function openCalendar() {
 function shareText(day, since) {
   let evs = eventsOf(day);
   if (since) evs = evs.filter(e => e.ts > since);
-  const lines = groupsOf(evs).map(g => `${fmtSlot(g.start)} : ${g.items.map(e => ty(e.t).e + (e.n ? ` (${fmtNote(e)}) ` : '')).join('').trim()}`);
+  const lines = groupsOf(evs).map(g => `${fmtSlot(g.start)} : ${g.items.map(e => ty(e.t).e + (fmtNote(e) ? ` (${fmtNote(e)}) ` : '')).join('').trim()}`);
   return [`${profile.name || 'Bébé'}, ${fmtLong(parseDay(day))}`].concat(lines).join('\n');
 }
 function markShared() { prefs.lastShare = Date.now(); savePrefs(); }
@@ -1651,6 +1900,20 @@ $('#grid').addEventListener('click', e => {
   logType(b.dataset.k);
 });
 $('#moreBtn').addEventListener('click', openMore);
+$('#wPill').addEventListener('click', openWeight);
+$('#live').addEventListener('click', e => {
+  const b = e.target.closest('[data-stop]');
+  if (!b) return;
+  const [d, id] = b.dataset.stop.split('|');
+  const ev = days[d] && days[d][id];
+  if (ev) stopFeed(Object.assign({ id, day: d }, ev));
+});
+setInterval(() => {
+  const c = $('#liveClock');
+  if (!c) return;
+  const f = runningFeed();
+  if (f) c.textContent = clock(Date.now() - f.ts);
+}, 1000);
 $('#avatarBtn').addEventListener('click', openAvatar);
 ['#camInput', '#galInput'].forEach(sel => $(sel).addEventListener('change', e => {
   const f = e.target.files && e.target.files[0];
@@ -1767,10 +2030,11 @@ applyTheme();
 render(true);
 renderAvatar();
 setInterval(tick, 30000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { tick(); askedFeeds.clear(); setTimeout(checkLongFeeds, 300); } });
 const dbReady = initDb();
 Promise.race([dbReady, new Promise(r => setTimeout(r, 1500))]).then(() => {
   if (!profile.birth && !prefs.onboarded && sheet.hidden) openOnboarding();
+  checkLongFeeds();
 });
 })();
 </script>
