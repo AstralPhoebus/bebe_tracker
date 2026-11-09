@@ -1006,8 +1006,9 @@ function renderHeader() {
   const wp = $('#wPill');
   if (profile.weight) {
     const a = appert(profile.weight, profile.bottles || 6);
-    wp.innerHTML = `<span class="emo">⚖️</span>${esc(fmtKg(profile.weight))} · biberon ≈ ${a.per} ml`;
-    wp.setAttribute('aria-label', `Poids ${fmtKg(profile.weight)}, biberon d’environ ${a.per} ml. Modifier le poids`);
+    const nb = profile.bottles || 6;
+    wp.innerHTML = `<span class="emo">⚖️</span>${esc(fmtKg(profile.weight))} · ${nb} biberons de ≈ ${a.per} ml`;
+    wp.setAttribute('aria-label', `Poids ${fmtKg(profile.weight)}, ${nb} biberons par jour d’environ ${a.per} ml. Modifier`);
   } else {
     wp.innerHTML = '<span class="emo">⚖️</span>Ajouter son poids';
     wp.setAttribute('aria-label', 'Ajouter le poids pour calculer les biberons');
