@@ -439,7 +439,7 @@ section > .sec:first-child { margin-top: 4px; }
     <div class="toast" id="toast" role="status" hidden></div>
     <div class="live" id="live" hidden></div>
     <div class="grid" id="grid"></div>
-    <button class="morebar" type="button" id="moreBtn">+ Autre : biberon, prout, bain, pédiatre…</button>
+    <button class="morebar" type="button" id="moreBtn">+ Autre : médicament, prout, bain, pédiatre…</button>
   </div>
 </div>
 
@@ -525,8 +525,8 @@ const CATALOG = {
   premiere:   { e: '🎉', l: 'Première fois', note: 'Ex. premier sourire', photo: 1 },
   marquant:   { e: '🤩', l: 'Événement marquant', note: 'Ex. rencontre avec ses grands-parents', photo: 1 }
 };
-const QUICK = ['tetee', 'vitamine', 'caca', 'pipi', 'toilette', 'dodo', 'pleurs', 'tirelait', 'medicament', 'sortie'];
-const EXTRAS = ['biberon', 'crise', 'jeu', 'eveil', 'bain', 'soin', 'regurg', 'temp'];
+const QUICK = ['tetee', 'vitamine', 'caca', 'pipi', 'toilette', 'dodo', 'pleurs', 'tirelait', 'biberon', 'sortie'];
+const EXTRAS = ['medicament', 'crise', 'jeu', 'eveil', 'bain', 'soin', 'regurg', 'temp'];
 const EVENTS = ['pediatre', 'pesee', 'vaccin', 'premiere', 'marquant'];
 
 /* Calendrier vaccinal 2026, bébés nés depuis le 1er janvier 2025 */
@@ -664,6 +664,7 @@ function fmtNote(e) {
     else if (e.du) parts.push(fmtDur(e.du));
     return parts.join(', ');
   }
+  if (e.t === 'biberon') return Number(e.ml) > 0 ? `${Number(e.ml)} ml` : '';
   if (e.t === 'tirelait') {
     const q = e.q || {}, side = String(e.n || '');
     const lab = k => (k === 'g' ? 'gauche' : 'droit');
@@ -836,7 +837,7 @@ function unsubAll() {
   if (profUnsub) { try { profUnsub(); } catch (e) {} profUnsub = null; }
 }
 function packEv(e) {
-  const o = { t: e.t, ts: e.ts, n: e.n || '', x: e.x ? 1 : 0, ph: e.ph || '', du: Number(e.du) || 0, run: e.run ? 1 : 0 };
+  const o = { t: e.t, ts: e.ts, n: e.n || '', x: e.x ? 1 : 0, ph: e.ph || '', du: Number(e.du) || 0, run: e.run ? 1 : 0, ml: Number(e.ml) || 0 };
   if (e.q) o.q = { g: Number(e.q.g) || 0, d: Number(e.q.d) || 0 };
   return o;
 }
@@ -902,7 +903,7 @@ function subscribeDay(day) {
       const merged = {};
       for (const [id, e] of Object.entries(remote)) {
         if (e && typeof e === 'object') {
-          merged[id] = { t: String(e.t || ''), ts: Number(e.ts) || 0, n: String(e.n || ''), x: e.x ? 1 : 0, p: 0, ph: String(e.ph || ''), du: Number(e.du) || 0, run: e.run ? 1 : 0 };
+          merged[id] = { t: String(e.t || ''), ts: Number(e.ts) || 0, n: String(e.n || ''), x: e.x ? 1 : 0, p: 0, ph: String(e.ph || ''), du: Number(e.du) || 0, run: e.run ? 1 : 0, ml: Number(e.ml) || 0 };
           if (e.q && typeof e.q === 'object') merged[id].q = { g: Number(e.q.g) || 0, d: Number(e.q.d) || 0 };
         }
       }
@@ -1081,7 +1082,7 @@ function renderLast() {
     if (feed.run) {
       html += `<p class="last-label"><span class="emo">${esc(c.e)}</span>Tétée en cours depuis</p><p class="last-big">${ago === 'à l’instant' ? '0 min' : ago}</p><p class="last-sub">début à ${fmtTime(feed.ts)}${feed.n ? `, sein ${esc(feed.n)}` : ''}</p>`;
     } else {
-      html += `<p class="last-label"><span class="emo">${esc(c.e)}</span>${ago === 'à l’instant' ? 'Dernier repas' : 'Dernier repas, il y a'}</p><p class="last-big">${ago === 'à l’instant' ? 'À l’instant' : ago}</p><p class="last-sub">à ${fmtTime(feed.ts)}, ${esc(c.l.toLowerCase())}${feed.du ? `, ${fmtDur(feed.du)}` : ''}${extra}</p>`;
+      html += `<p class="last-label"><span class="emo">${esc(c.e)}</span>${ago === 'à l’instant' ? 'Dernier repas' : 'Dernier repas, il y a'}</p><p class="last-big">${ago === 'à l’instant' ? 'À l’instant' : ago}</p><p class="last-sub">à ${fmtTime(feed.ts)}, ${esc(c.l.toLowerCase())}${feed.du ? `, ${fmtDur(feed.du)}` : ''}${Number(feed.ml) > 0 ? `, ${Number(feed.ml)} ml` : ''}${extra}</p>`;
     }
   } else {
     html += '<p class="last-label">Aucun repas noté depuis hier</p>';
@@ -1121,7 +1122,8 @@ function renderTotals(evs) {
   el.setAttribute('aria-label', 'Total du jour : ' + order.map(k => `${counts[k]} ${ty(k).l}`).join(', '));
   const dur = evs.filter(e => e.t === 'tetee').reduce((a, e) => a + (Number(e.du) || 0), 0);
   const ml = evs.filter(e => e.t === 'tirelait').reduce((a, e) => a + (e.q ? (Number(e.q.g) || 0) + (Number(e.q.d) || 0) : 0), 0);
-  const more = k => (k === 'tetee' && dur ? ` · ${fmtDur(dur)}` : k === 'tirelait' && ml ? ` · ${ml} ml` : '');
+  const bib = evs.filter(e => e.t === 'biberon').reduce((a, e) => a + (Number(e.ml) || 0), 0);
+  const more = k => (k === 'tetee' && dur ? ` · ${fmtDur(dur)}` : k === 'tirelait' && ml ? ` · ${ml} ml` : k === 'biberon' && bib ? ` · ${bib} ml` : '');
   el.innerHTML = order.map(k => `<span title="${esc(ty(k).l)}"><span class="emo">${esc(ty(k).e)}</span>${counts[k]}${more(k)}</span>`).join('');
 }
 function renderTip() {
@@ -1226,6 +1228,7 @@ function afterLog(r) {
 }
 function logType(k) {
   if (k === 'tirelait') { openPump(); return; }
+  if (k === 'biberon') { openBottle(); return; }
   const cat = CATALOG[k] || {};
   if (cat.note || cat.opts) { openNote(k); return; }
   closeSheet();
@@ -1292,6 +1295,31 @@ function checkLongFeeds() {
   const now = Date.now();
   const f = recent().find(e => e.t === 'tetee' && e.run && now - e.ts > LONG_FEED && !askedFeeds.has(e.id));
   if (f) { askedFeeds.add(f.id); askDuration(f); }
+}
+
+/* ---------- Biberon : quantité donnée ou bue ---------- */
+function recentMl(max) {
+  const all = [];
+  for (const evs of Object.values(days)) for (const e of Object.values(evs || {})) if (e && !e.x && e.t === 'biberon' && Number(e.ml) > 0) all.push(e);
+  all.sort((a, b) => b.ts - a.ts);
+  const out = [];
+  for (const e of all) { const v = Number(e.ml); if (!out.includes(v)) out.push(v); if (out.length >= max) break; }
+  return out;
+}
+function openBottle() {
+  const c = ty('biberon');
+  const sug = profile.weight ? appert(profile.weight, profile.bottles || 6).per : 0;
+  const rec = recentMl(3).filter(v => v !== sug);
+  const chips = (sug ? [`<button class="chip" type="button" data-ml="${sug}">${sug} ml <span style="opacity:.7">(repère)</span></button>`] : []).concat(rec.map(v => `<button class="chip" type="button" data-ml="${v}">${v} ml</button>`));
+  openSheet(`<h3><span class="emo">${esc(c.e)}</span>${esc(c.l)}</h3>${chips.length ? `<p class="hint">Un toucher suffit :</p><div class="chips" style="margin-top:8px">${chips.join('')}</div>` : ''}<label class="fld"><span>Quantité donnée ou bue, en ml</span><input type="text" id="mlIn" inputmode="numeric" placeholder="Ex. 90" autocomplete="off"${chips.length ? '' : ' autofocus'}></label><button class="primary" type="button" id="mlOk">Noter à ${fmtTime(Date.now())}</button><button class="secondary" type="button" data-close>Annuler</button>`, p => {
+    const go = v => { closeSheet(); afterLog(addEvent('biberon', '', Date.now(), '', { ml: v > 0 && v < 1000 ? v : 0 })); };
+    p.onclick = e => {
+      const ch = e.target.closest('[data-ml]');
+      if (ch) { go(Number(ch.dataset.ml)); return; }
+      if (e.target.closest('#mlOk')) go(parseInt($('#mlIn', p).value, 10) || 0);
+    };
+    $('#mlIn', p).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); go(parseInt(e.target.value, 10) || 0); } });
+  });
 }
 
 /* ---------- Tire-lait ---------- */
@@ -1494,6 +1522,7 @@ function openGroup(day, ids) {
       : (cat.photo ? `<div class="edit-photo">${pickerHtml()}</div>` : '');
     let more = '';
     if (e.t === 'tetee') more = `<div class="eline"><span>Durée, en min</span><input type="text" inputmode="numeric" class="edu" value="${e.du || ''}" placeholder="${e.run ? 'en cours' : 'min'}" autocomplete="off">${e.run ? '<button class="chip" type="button" data-stopnow>Terminer</button>' : ''}</div>`;
+    if (e.t === 'biberon') more = `<div class="eline"><span>Quantité, en ml</span><input type="text" inputmode="numeric" class="eml" value="${Number(e.ml) || ''}" placeholder="ml" autocomplete="off"></div>`;
     if (e.t === 'tirelait') {
       const sd = e.n === 'les deux' ? ['g', 'd'] : e.n === 'gauche' ? ['g'] : e.n === 'droit' ? ['d'] : [];
       const q = e.q || {};
@@ -1509,6 +1538,12 @@ function openGroup(day, ids) {
       if (e.target.classList.contains('edu')) {
         const v = parseInt(e.target.value, 10);
         if (v > 0 && v < 600) { setEvent(day, id, { du: v, run: 0 }); render(); }
+        return;
+      }
+      if (e.target.classList.contains('eml')) {
+        const v = parseInt(e.target.value, 10);
+        setEvent(day, id, { ml: v > 0 && v < 1000 ? v : 0 });
+        render();
         return;
       }
       if (e.target.classList.contains('eq')) {
