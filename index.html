@@ -439,7 +439,7 @@ section > .sec:first-child { margin-top: 4px; }
     <div class="toast" id="toast" role="status" hidden></div>
     <div class="live" id="live" hidden></div>
     <div class="grid" id="grid"></div>
-    <button class="morebar" type="button" id="moreBtn">+ Autre : médicament, prout, bain, pédiatre…</button>
+    <button class="morebar" type="button" id="moreBtn">+ Autre : médicament, tétée, bain, pédiatre…</button>
   </div>
 </div>
 
@@ -525,8 +525,8 @@ const CATALOG = {
   premiere:   { e: '🎉', l: 'Première fois', note: 'Ex. premier sourire', photo: 1 },
   marquant:   { e: '🤩', l: 'Événement marquant', note: 'Ex. rencontre avec ses grands-parents', photo: 1 }
 };
-const QUICK = ['tetee', 'vitamine', 'caca', 'pipi', 'toilette', 'dodo', 'pleurs', 'tirelait', 'biberon', 'sortie'];
-const EXTRAS = ['medicament', 'crise', 'jeu', 'eveil', 'bain', 'soin', 'regurg', 'temp'];
+const QUICK = ['eveil', 'vitamine', 'caca', 'pipi', 'toilette', 'dodo', 'pleurs', 'tirelait', 'biberon', 'sortie'];
+const EXTRAS = ['medicament', 'tetee', 'crise', 'jeu', 'bain', 'soin', 'regurg', 'temp'];
 const EVENTS = ['pediatre', 'pesee', 'vaccin', 'premiere', 'marquant'];
 
 /* Calendrier vaccinal 2026, bébés nés depuis le 1er janvier 2025 */
@@ -664,7 +664,12 @@ function fmtNote(e) {
     else if (e.du) parts.push(fmtDur(e.du));
     return parts.join(', ');
   }
-  if (e.t === 'biberon') return Number(e.ml) > 0 ? `${Number(e.ml)} ml` : '';
+  if (e.t === 'biberon') {
+    const parts = [];
+    if (e.n) parts.push(`lait ${e.n}`);
+    if (Number(e.ml) > 0) parts.push(`${Number(e.ml)} ml`);
+    return parts.join(', ');
+  }
   if (e.t === 'tirelait') {
     const q = e.q || {}, side = String(e.n || '');
     const lab = k => (k === 'g' ? 'gauche' : 'droit');
@@ -1082,7 +1087,7 @@ function renderLast() {
     if (feed.run) {
       html += `<p class="last-label"><span class="emo">${esc(c.e)}</span>Tétée en cours depuis</p><p class="last-big">${ago === 'à l’instant' ? '0 min' : ago}</p><p class="last-sub">début à ${fmtTime(feed.ts)}${feed.n ? `, sein ${esc(feed.n)}` : ''}</p>`;
     } else {
-      html += `<p class="last-label"><span class="emo">${esc(c.e)}</span>${ago === 'à l’instant' ? 'Dernier repas' : 'Dernier repas, il y a'}</p><p class="last-big">${ago === 'à l’instant' ? 'À l’instant' : ago}</p><p class="last-sub">à ${fmtTime(feed.ts)}, ${esc(c.l.toLowerCase())}${feed.du ? `, ${fmtDur(feed.du)}` : ''}${Number(feed.ml) > 0 ? `, ${Number(feed.ml)} ml` : ''}${extra}</p>`;
+      html += `<p class="last-label"><span class="emo">${esc(c.e)}</span>${ago === 'à l’instant' ? 'Dernier repas' : 'Dernier repas, il y a'}</p><p class="last-big">${ago === 'à l’instant' ? 'À l’instant' : ago}</p><p class="last-sub">à ${fmtTime(feed.ts)}, ${esc(c.l.toLowerCase())}${feed.du ? `, ${fmtDur(feed.du)}` : ''}${feed.t === 'biberon' && fmtNote(feed) ? `, ${esc(fmtNote(feed))}` : ''}${extra}</p>`;
     }
   } else {
     html += '<p class="last-label">Aucun repas noté depuis hier</p>';
@@ -1308,12 +1313,16 @@ function recentMl(max) {
 }
 function openBottle() {
   const c = ty('biberon');
+  let milk = prefs.lastMilk === 'artificiel' ? 'artificiel' : 'maternel';
+  const milkSeg = `<div class="seg big">${[['maternel', 'Lait maternel'], ['artificiel', 'Lait artificiel']].map(([v, l]) => `<button type="button" data-milk="${v}" aria-pressed="${v === milk}">${l}</button>`).join('')}</div>`;
   const sug = profile.weight ? appert(profile.weight, profile.bottles || 6).per : 0;
   const rec = recentMl(3).filter(v => v !== sug);
   const chips = (sug ? [`<button class="chip" type="button" data-ml="${sug}">${sug} ml <span style="opacity:.7">(repère)</span></button>`] : []).concat(rec.map(v => `<button class="chip" type="button" data-ml="${v}">${v} ml</button>`));
-  openSheet(`<h3><span class="emo">${esc(c.e)}</span>${esc(c.l)}</h3>${chips.length ? `<p class="hint">Un toucher suffit :</p><div class="chips" style="margin-top:8px">${chips.join('')}</div>` : ''}<label class="fld"><span>Quantité donnée ou bue, en ml</span><input type="text" id="mlIn" inputmode="numeric" placeholder="Ex. 90" autocomplete="off"${chips.length ? '' : ' autofocus'}></label><button class="primary" type="button" id="mlOk">Noter à ${fmtTime(Date.now())}</button><button class="secondary" type="button" data-close>Annuler</button>`, p => {
-    const go = v => { closeSheet(); afterLog(addEvent('biberon', '', Date.now(), '', { ml: v > 0 && v < 1000 ? v : 0 })); };
+  openSheet(`<h3><span class="emo">${esc(c.e)}</span>${esc(c.l)}</h3>${milkSeg}${chips.length ? `<p class="hint" style="margin-top:14px">Quantité, un toucher suffit :</p><div class="chips" style="margin-top:8px">${chips.join('')}</div>` : ''}<label class="fld"><span>Quantité donnée ou bue, en ml</span><input type="text" id="mlIn" inputmode="numeric" placeholder="Ex. 90" autocomplete="off"${chips.length ? '' : ' autofocus'}></label><button class="primary" type="button" id="mlOk">Noter à ${fmtTime(Date.now())}</button><button class="secondary" type="button" data-close>Annuler</button>`, p => {
+    const go = v => { prefs.lastMilk = milk; savePrefs(); closeSheet(); afterLog(addEvent('biberon', milk, Date.now(), '', { ml: v > 0 && v < 1000 ? v : 0 })); };
     p.onclick = e => {
+      const mk = e.target.closest('[data-milk]');
+      if (mk) { milk = mk.dataset.milk; p.querySelectorAll('[data-milk]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.milk === milk))); return; }
       const ch = e.target.closest('[data-ml]');
       if (ch) { go(Number(ch.dataset.ml)); return; }
       if (e.target.closest('#mlOk')) go(parseInt($('#mlIn', p).value, 10) || 0);
@@ -1522,7 +1531,7 @@ function openGroup(day, ids) {
       : (cat.photo ? `<div class="edit-photo">${pickerHtml()}</div>` : '');
     let more = '';
     if (e.t === 'tetee') more = `<div class="eline"><span>Durée, en min</span><input type="text" inputmode="numeric" class="edu" value="${e.du || ''}" placeholder="${e.run ? 'en cours' : 'min'}" autocomplete="off">${e.run ? '<button class="chip" type="button" data-stopnow>Terminer</button>' : ''}</div>`;
-    if (e.t === 'biberon') more = `<div class="eline"><span>Quantité, en ml</span><input type="text" inputmode="numeric" class="eml" value="${Number(e.ml) || ''}" placeholder="ml" autocomplete="off"></div>`;
+    if (e.t === 'biberon') more = `<div class="eline"><span>Lait</span><div class="seg">${['maternel', 'artificiel'].map(m => `<button type="button" data-milk="${m}" aria-pressed="${e.n === m}">${m}</button>`).join('')}</div></div><div class="eline"><span>Quantité, en ml</span><input type="text" inputmode="numeric" class="eml" value="${Number(e.ml) || ''}" placeholder="ml" autocomplete="off"></div>`;
     if (e.t === 'tirelait') {
       const sd = e.n === 'les deux' ? ['g', 'd'] : e.n === 'gauche' ? ['g'] : e.n === 'droit' ? ['d'] : [];
       const q = e.q || {};
@@ -1568,6 +1577,8 @@ function openGroup(day, ids) {
     p.onclick = e => {
       const li0 = e.target.closest('li[data-id]');
       const ev0 = li0 && days[day] && days[day][li0.dataset.id];
+      const mk = e.target.closest('[data-milk]');
+      if (mk && li0) { setEvent(day, li0.dataset.id, { n: mk.dataset.milk }); render(); openGroup(day, ids); return; }
       const pk = e.target.closest('[data-pick]');
       if (pk && li0) {
         const id = li0.dataset.id;
